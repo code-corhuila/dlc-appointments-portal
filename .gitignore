@@ -1,0 +1,17 @@
+# Dependencies
+/node_modules
+
+# Build output
+/dist
+/.angular
+
+# Native Federation generated configuration
+/tsconfig.federation.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Sensitive key material
+*.pem
