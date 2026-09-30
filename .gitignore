@@ -15,4 +15,3 @@
 
 # Sensitive key material
 *.pem
-*.key
