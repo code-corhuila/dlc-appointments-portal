@@ -24,4 +24,8 @@ module.exports = withNativeFederation({
     'rxjs/testing',
     'rxjs/webSocket',
   ],
+
+  features: {
+    ignoreUnusedDeps: true,
+  },
 });
