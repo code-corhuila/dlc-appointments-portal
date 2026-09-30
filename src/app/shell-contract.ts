@@ -1,3 +1,5 @@
+import { InjectionToken } from '@angular/core';
+
 export type StaffRole =
   | 'ADMINISTRATOR'
   | 'SECRETARY_ASSISTANT'
@@ -8,14 +10,11 @@ export interface ShellUser {
   readonly roles: readonly StaffRole[];
 }
 
-/**
- * TODO(open-question):
- * Align this boundary with the final dlc-front shell contract.
- *
- * The portal must receive session context and Angular HttpClient
- * from the shell injector. It must never create or manage its own
- * authentication session or HTTP client.
- */
 export interface AppointmentsShellContext {
   readonly currentUser: ShellUser;
 }
+
+export const APPOINTMENTS_SHELL_CONTEXT =
+  new InjectionToken<AppointmentsShellContext>(
+    'APPOINTMENTS_SHELL_CONTEXT',
+  );

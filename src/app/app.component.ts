@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
-  selector: 'dlc-appointments-root',
+  selector: 'app-root',
   imports: [RouterOutlet],
   template: '<router-outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
