@@ -1,0 +1,8 @@
+services:
+  appointments-portal:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    expose:
+      - "80"
+    restart: unless-stopped
