@@ -74,6 +74,11 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "test": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -99,7 +104,7 @@
             "runner": "vitest",
             "watch": false,
             "tsConfig": "tsconfig.spec.json",
-            "buildTarget": "dlc-appointments-portal:esbuild:development"
+            "buildTarget": "dlc-appointments-portal:esbuild:test"
           }
         }
       }
