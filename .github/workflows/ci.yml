@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -13,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Angular portal
+    name: Test and build Angular portal
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -29,6 +30,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run unit tests
+        run: npm test
 
       - name: Build application
         run: npm run build
