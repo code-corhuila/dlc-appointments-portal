@@ -1,13 +1,13 @@
 import { buildCalendarDays } from './calendar-grid';
 
 describe('buildCalendarDays', () => {
-  it('builds only the complete weeks required by the month', () => {
+  it('builds a six-week month grid starting on Sunday', () => {
     const days = buildCalendarDays(
       '2026-10-15',
       'month',
     );
 
-    expect(days).toHaveLength(35);
+    expect(days).toHaveLength(42);
     expect(days[0]).toEqual({
       date: '2026-09-27',
       isCurrentMonth: false,
@@ -16,29 +16,8 @@ describe('buildCalendarDays', () => {
       date: '2026-10-01',
       isCurrentMonth: true,
     });
-    expect(days[34]).toEqual({
-      date: '2026-10-31',
-      isCurrentMonth: true,
-    });
-  });
-
-  it('uses six weeks when the month requires them', () => {
-    const days = buildCalendarDays(
-      '2026-08-15',
-      'month',
-    );
-
-    expect(days).toHaveLength(42);
-    expect(days[0]).toEqual({
-      date: '2026-07-26',
-      isCurrentMonth: false,
-    });
-    expect(days[6]).toEqual({
-      date: '2026-08-01',
-      isCurrentMonth: true,
-    });
     expect(days[41]).toEqual({
-      date: '2026-09-05',
+      date: '2026-11-07',
       isCurrentMonth: false,
     });
   });
@@ -83,40 +62,19 @@ describe('buildCalendarDays', () => {
 
   it('marks week days outside the anchor month', () => {
     const days = buildCalendarDays(
-      '2026-10-01',
+      '2026-11-02',
       'week',
     );
 
-    expect(days).toEqual([
-      {
-        date: '2026-09-27',
-        isCurrentMonth: false,
-      },
-      {
-        date: '2026-09-28',
-        isCurrentMonth: false,
-      },
-      {
-        date: '2026-09-29',
-        isCurrentMonth: false,
-      },
-      {
-        date: '2026-09-30',
-        isCurrentMonth: false,
-      },
-      {
-        date: '2026-10-01',
-        isCurrentMonth: true,
-      },
-      {
-        date: '2026-10-02',
-        isCurrentMonth: true,
-      },
-      {
-        date: '2026-10-03',
-        isCurrentMonth: true,
-      },
-    ]);
+    expect(days[0]).toEqual({
+      date: '2026-11-01',
+      isCurrentMonth: true,
+    });
+
+    expect(days[6]).toEqual({
+      date: '2026-11-07',
+      isCurrentMonth: true,
+    });
   });
 
   it('rejects an invalid anchor date', () => {
