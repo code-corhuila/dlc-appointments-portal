@@ -27,6 +27,7 @@ const MONTH_NAMES = [
   selector: 'app-calendar-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './calendar-page.component.css',
   template: `
     <main class="calendar-page">
       <header class="calendar-header">
