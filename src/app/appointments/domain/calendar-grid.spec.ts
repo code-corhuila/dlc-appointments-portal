@@ -62,19 +62,40 @@ describe('buildCalendarDays', () => {
 
   it('marks week days outside the anchor month', () => {
     const days = buildCalendarDays(
-      '2026-11-02',
+      '2026-10-01',
       'week',
     );
 
-    expect(days[0]).toEqual({
-      date: '2026-11-01',
-      isCurrentMonth: true,
-    });
-
-    expect(days[6]).toEqual({
-      date: '2026-11-07',
-      isCurrentMonth: true,
-    });
+    expect(days).toEqual([
+      {
+        date: '2026-09-27',
+        isCurrentMonth: false,
+      },
+      {
+        date: '2026-09-28',
+        isCurrentMonth: false,
+      },
+      {
+        date: '2026-09-29',
+        isCurrentMonth: false,
+      },
+      {
+        date: '2026-09-30',
+        isCurrentMonth: false,
+      },
+      {
+        date: '2026-10-01',
+        isCurrentMonth: true,
+      },
+      {
+        date: '2026-10-02',
+        isCurrentMonth: true,
+      },
+      {
+        date: '2026-10-03',
+        isCurrentMonth: true,
+      },
+    ]);
   });
 
   it('rejects an invalid anchor date', () => {
