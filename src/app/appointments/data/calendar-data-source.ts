@@ -1,8 +1,10 @@
 import {
   catchError,
   EMPTY,
+  expand,
   map,
   Observable,
+  reduce,
   Subject,
   switchMap,
 } from 'rxjs';
@@ -56,6 +58,25 @@ export class CalendarDataSource {
         };
 
         return this.api.listAppointments(query).pipe(
+          expand((page) => {
+            const nextPage = page.meta.page + 1;
+
+            if (nextPage > page.meta.totalPages) {
+              return EMPTY;
+            }
+
+            return this.api.listAppointments({
+              ...query,
+              page: nextPage,
+            });
+          }),
+          reduce((combined, page) => ({
+            ...combined,
+            data: [
+              ...combined.data,
+              ...page.data,
+            ],
+          })),
           map((page) => ({
             ...page,
             data: [...page.data].sort((left, right) =>
