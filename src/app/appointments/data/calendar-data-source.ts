@@ -1,6 +1,9 @@
 import {
+  catchError,
+  EMPTY,
   map,
   Observable,
+  Subject,
   switchMap,
 } from 'rxjs';
 
@@ -8,6 +11,7 @@ import {
   CalendarView,
   getCalendarRange,
 } from '../domain/calendar-range';
+import { ApiError } from '../model/api-error';
 import { Appointment } from '../model/appointment';
 import { AppointmentListQuery } from '../model/appointment-operations';
 import { Page } from '../model/page';
@@ -20,6 +24,10 @@ export interface CalendarSelection {
 }
 
 export class CalendarDataSource {
+  private readonly errorSubject = new Subject<ApiError>();
+
+  readonly errors$ = this.errorSubject.asObservable();
+
   constructor(
     private readonly api: Pick<
       AppointmentsApiService,
@@ -54,6 +62,10 @@ export class CalendarDataSource {
               left.startAt.localeCompare(right.startAt),
             ),
           })),
+          catchError((error: ApiError) => {
+            this.errorSubject.next(error);
+            return EMPTY;
+          }),
         );
       }),
     );
