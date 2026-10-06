@@ -20,7 +20,10 @@ export function buildCalendarDays(
       ? getMonthGridStart(range.from)
       : parseRangeDate(range.from);
 
-  const dayCount = view === 'month' ? 42 : 7;
+  const dayCount =
+    view === 'month'
+      ? getMonthGridDayCount(start, range.to)
+      : 7;
 
   return Array.from(
     { length: dayCount },
@@ -47,6 +50,20 @@ function getMonthGridStart(from: string): Date {
   );
 
   return gridStart;
+}
+
+function getMonthGridDayCount(
+  gridStart: Date,
+  monthEndExclusive: string,
+): 35 | 42 {
+  const end = parseRangeDate(monthEndExclusive);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  const requiredDays =
+    (end.getTime() - gridStart.getTime()) /
+    millisecondsPerDay;
+
+  return requiredDays > 35 ? 42 : 35;
 }
 
 function parseRangeDate(value: string): Date {
