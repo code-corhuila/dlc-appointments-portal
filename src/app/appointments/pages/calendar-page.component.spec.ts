@@ -145,4 +145,90 @@ describe('CalendarPageComponent', () => {
         ?.getAttribute('aria-pressed'),
     ).toBe('false');
   });
+
+  it('shows the active month and navigates between month periods', () => {
+    const element: HTMLElement = fixture.nativeElement;
+
+    const periodLabel = () =>
+      element
+        .querySelector('[data-calendar-period]')
+        ?.textContent?.trim();
+
+    const previousButton = element.querySelector<HTMLButtonElement>(
+      '[aria-label="Periodo anterior"]',
+    );
+
+    const nextButton = element.querySelector<HTMLButtonElement>(
+      '[aria-label="Periodo siguiente"]',
+    );
+
+    expect(periodLabel()).toBe('Octubre 2026');
+
+    previousButton?.click();
+    fixture.detectChanges();
+
+    expect(periodLabel()).toBe('Septiembre 2026');
+
+    expect(
+      element.querySelector(
+        '[data-calendar-day][data-date="2026-09-01"]',
+      ),
+    ).not.toBeNull();
+
+    nextButton?.click();
+    fixture.detectChanges();
+
+    expect(periodLabel()).toBe('Octubre 2026');
+
+    nextButton?.click();
+    fixture.detectChanges();
+
+    expect(periodLabel()).toBe('Noviembre 2026');
+
+    expect(
+      element.querySelector(
+        '[data-calendar-day][data-date="2026-11-01"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('navigates by seven days when the week view is active', () => {
+    const element: HTMLElement = fixture.nativeElement;
+
+    const weekButton = element.querySelector<HTMLButtonElement>(
+      '[data-calendar-view="week"]',
+    );
+
+    const nextButton = element.querySelector<HTMLButtonElement>(
+      '[aria-label="Periodo siguiente"]',
+    );
+
+    weekButton?.click();
+    fixture.detectChanges();
+
+    expect(
+      element
+        .querySelector('[data-calendar-period]')
+        ?.textContent?.trim(),
+    ).toBe('11 – 17 de octubre de 2026');
+
+    nextButton?.click();
+    fixture.detectChanges();
+
+    const days = Array.from(
+      element.querySelectorAll<HTMLElement>(
+        '[data-calendar-day]',
+      ),
+    );
+
+    expect(days).toHaveLength(7);
+    expect(days[0]?.dataset['date']).toBe('2026-10-18');
+    expect(days[6]?.dataset['date']).toBe('2026-10-24');
+
+    expect(
+      element
+        .querySelector('[data-calendar-period]')
+        ?.textContent?.trim(),
+    ).toBe('18 – 24 de octubre de 2026');
+  });
 });
