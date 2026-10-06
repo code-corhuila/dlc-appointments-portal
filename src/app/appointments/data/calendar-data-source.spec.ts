@@ -2,6 +2,7 @@ import {
   finalize,
   of,
   Subject,
+  throwError,
 } from 'rxjs';
 
 import { AppointmentsApiService } from './appointments-api.service';
@@ -9,6 +10,7 @@ import {
   CalendarDataSource,
   type CalendarSelection,
 } from './calendar-data-source';
+import { ApiError } from '../model/api-error';
 import { Appointment } from '../model/appointment';
 import { AppointmentListQuery } from '../model/appointment-operations';
 import { Page } from '../model/page';
@@ -98,6 +100,59 @@ describe('CalendarDataSource', () => {
 
     expect(firstRequestFinalized).toBe(true);
     expect(requestCount).toBe(2);
+  });
+
+  it('reports a request error and keeps listening for later selections', () => {
+    const apiError: ApiError = {
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Appointments are temporarily unavailable.',
+      traceId: 'trace-calendar-001',
+    };
+
+    let requestCount = 0;
+
+    const api = {
+      listAppointments: () => {
+        requestCount += 1;
+
+        if (requestCount === 1) {
+          return throwError(() => apiError);
+        }
+
+        return of(emptyPage);
+      },
+    } as Pick<AppointmentsApiService, 'listAppointments'>;
+
+    const selection$ = new Subject<CalendarSelection>();
+    const dataSource = new CalendarDataSource(api);
+    const reportedErrors: ApiError[] = [];
+    const emittedPages: Page<Appointment>[] = [];
+
+    dataSource.errors$.subscribe((error) => {
+      reportedErrors.push(error);
+    });
+
+    dataSource.connect(selection$).subscribe((page) => {
+      emittedPages.push(page);
+    });
+
+    selection$.next({
+      anchorDate: '2026-10-06',
+      view: 'week',
+      dentistId: 'dentist-123',
+    });
+
+    expect(reportedErrors).toEqual([apiError]);
+    expect(requestCount).toBe(1);
+
+    selection$.next({
+      anchorDate: '2026-10-13',
+      view: 'week',
+      dentistId: 'dentist-123',
+    });
+
+    expect(requestCount).toBe(2);
+    expect(emittedPages).toEqual([emptyPage]);
   });
 
   it('orders appointments by start time', () => {
