@@ -1,13 +1,13 @@
 import { buildCalendarDays } from './calendar-grid';
 
 describe('buildCalendarDays', () => {
-  it('builds a six-week month grid starting on Sunday', () => {
+  it('builds only the complete weeks required by the month', () => {
     const days = buildCalendarDays(
       '2026-10-15',
       'month',
     );
 
-    expect(days).toHaveLength(42);
+    expect(days).toHaveLength(35);
     expect(days[0]).toEqual({
       date: '2026-09-27',
       isCurrentMonth: false,
@@ -16,8 +16,29 @@ describe('buildCalendarDays', () => {
       date: '2026-10-01',
       isCurrentMonth: true,
     });
+    expect(days[34]).toEqual({
+      date: '2026-10-31',
+      isCurrentMonth: true,
+    });
+  });
+
+  it('uses six weeks when the month requires them', () => {
+    const days = buildCalendarDays(
+      '2026-08-15',
+      'month',
+    );
+
+    expect(days).toHaveLength(42);
+    expect(days[0]).toEqual({
+      date: '2026-07-26',
+      isCurrentMonth: false,
+    });
+    expect(days[6]).toEqual({
+      date: '2026-08-01',
+      isCurrentMonth: true,
+    });
     expect(days[41]).toEqual({
-      date: '2026-11-07',
+      date: '2026-09-05',
       isCurrentMonth: false,
     });
   });
