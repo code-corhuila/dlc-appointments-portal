@@ -8,6 +8,21 @@ import {
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
 
+const MONTH_NAMES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+] as const;
+
 @Component({
   selector: 'app-calendar-page',
   standalone: true,
@@ -17,7 +32,6 @@ import { CalendarView } from '../domain/calendar-range';
       <header class="calendar-header">
         <div>
           <h1>Calendario de Citas</h1>
-
           <p>
             Consulta tu agenda de citas.
             <span>America/Bogota</span>
@@ -51,23 +65,16 @@ import { CalendarView } from '../domain/calendar-range';
             class="view-switcher"
             aria-label="Vista del calendario"
           >
-            <button
-              type="button"
-              data-calendar-view="month"
-              [attr.aria-pressed]="view() === 'month'"
-              (click)="selectView('month')"
-            >
-              Mes
-            </button>
-
-            <button
-              type="button"
-              data-calendar-view="week"
-              [attr.aria-pressed]="view() === 'week'"
-              (click)="selectView('week')"
-            >
-              Semana
-            </button>
+            @for (option of viewOptions; track option.value) {
+              <button
+                type="button"
+                [attr.data-calendar-view]="option.value"
+                [attr.aria-pressed]="view() === option.value"
+                (click)="selectView(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
           </div>
         </div>
       </header>
@@ -79,9 +86,7 @@ import { CalendarView } from '../domain/calendar-range';
         >
           <div class="calendar-weekdays">
             @for (weekday of weekdays; track weekday) {
-              <span data-weekday>
-                {{ weekday }}
-              </span>
+              <span data-weekday>{{ weekday }}</span>
             }
           </div>
 
@@ -120,23 +125,6 @@ import { CalendarView } from '../domain/calendar-range';
   `,
 })
 export class CalendarPageComponent {
-  private readonly monthNames = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ] as const;
-
-  private readonly anchorDate = signal('2026-10-15');
-
   readonly weekdays = [
     'Dom',
     'Lun',
@@ -147,45 +135,27 @@ export class CalendarPageComponent {
     'Sáb',
   ] as const;
 
+  readonly viewOptions = [
+    { value: 'month', label: 'Mes' },
+    { value: 'week', label: 'Semana' },
+  ] as const satisfies readonly {
+    value: CalendarView;
+    label: string;
+  }[];
+
+  private readonly anchorDate = signal('2026-10-15');
+
   readonly view = signal<CalendarView>('month');
 
   readonly days = computed(() =>
-    buildCalendarDays(
-      this.anchorDate(),
-      this.view(),
-    ),
+    buildCalendarDays(this.anchorDate(), this.view()),
   );
 
-  readonly periodLabel = computed(() => {
-    if (this.view() === 'month') {
-      const date = this.parseDate(this.anchorDate());
-      const month = this.monthNames[date.getUTCMonth()];
-
-      return `${this.capitalize(month)} ${date.getUTCFullYear()}`;
-    }
-
-    const days = this.days();
-    const firstDay = this.parseDate(days[0].date);
-    const lastDay = this.parseDate(days[days.length - 1].date);
-
-    const firstMonth = this.monthNames[firstDay.getUTCMonth()];
-    const lastMonth = this.monthNames[lastDay.getUTCMonth()];
-    const firstYear = firstDay.getUTCFullYear();
-    const lastYear = lastDay.getUTCFullYear();
-
-    if (
-      firstMonth === lastMonth &&
-      firstYear === lastYear
-    ) {
-      return `${firstDay.getUTCDate()} – ${lastDay.getUTCDate()} de ${firstMonth} de ${firstYear}`;
-    }
-
-    if (firstYear === lastYear) {
-      return `${firstDay.getUTCDate()} de ${firstMonth} – ${lastDay.getUTCDate()} de ${lastMonth} de ${firstYear}`;
-    }
-
-    return `${firstDay.getUTCDate()} de ${firstMonth} de ${firstYear} – ${lastDay.getUTCDate()} de ${lastMonth} de ${lastYear}`;
-  });
+  readonly periodLabel = computed(() =>
+    this.view() === 'month'
+      ? this.monthLabel()
+      : this.weekLabel(),
+  );
 
   selectView(view: CalendarView): void {
     this.view.set(view);
@@ -204,100 +174,75 @@ export class CalendarPageComponent {
   }
 
   private navigatePeriod(direction: -1 | 1): void {
-    if (this.view() === 'month') {
-      this.anchorDate.set(
-        this.shiftMonth(
-          this.anchorDate(),
-          direction,
-        ),
-      );
+    const date = this.parseDate(this.anchorDate());
 
-      return;
+    if (this.view() === 'month') {
+      const day = date.getUTCDate();
+
+      date.setUTCDate(1);
+      date.setUTCMonth(date.getUTCMonth() + direction);
+
+      const lastDay = new Date(
+        Date.UTC(
+          date.getUTCFullYear(),
+          date.getUTCMonth() + 1,
+          0,
+        ),
+      ).getUTCDate();
+
+      date.setUTCDate(Math.min(day, lastDay));
+    } else {
+      date.setUTCDate(date.getUTCDate() + direction * 7);
     }
 
-    this.anchorDate.set(
-      this.shiftDays(
-        this.anchorDate(),
-        direction * 7,
-      ),
-    );
+    this.anchorDate.set(this.formatDate(date));
   }
 
-  private shiftMonth(
-    date: string,
-    direction: -1 | 1,
-  ): string {
-    const current = this.parseDate(date);
+  private monthLabel(): string {
+    const date = this.parseDate(this.anchorDate());
 
-    const targetStart = new Date(
-      Date.UTC(
-        current.getUTCFullYear(),
-        current.getUTCMonth() + direction,
-        1,
-      ),
-    );
-
-    const lastDayOfTargetMonth = new Date(
-      Date.UTC(
-        targetStart.getUTCFullYear(),
-        targetStart.getUTCMonth() + 1,
-        0,
-      ),
-    ).getUTCDate();
-
-    const targetDay = Math.min(
-      current.getUTCDate(),
-      lastDayOfTargetMonth,
-    );
-
-    targetStart.setUTCDate(targetDay);
-
-    return this.formatDate(targetStart);
+    return `${this.capitalize(
+      MONTH_NAMES[date.getUTCMonth()],
+    )} ${date.getUTCFullYear()}`;
   }
 
-  private shiftDays(
-    date: string,
-    amount: number,
-  ): string {
-    const shifted = this.parseDate(date);
+  private weekLabel(): string {
+    const days = this.days();
+    const first = this.parseDate(days[0].date);
+    const last = this.parseDate(days[days.length - 1].date);
 
-    shifted.setUTCDate(
-      shifted.getUTCDate() + amount,
-    );
+    const firstMonth = MONTH_NAMES[first.getUTCMonth()];
+    const lastMonth = MONTH_NAMES[last.getUTCMonth()];
 
-    return this.formatDate(shifted);
+    if (
+      first.getUTCMonth() === last.getUTCMonth() &&
+      first.getUTCFullYear() === last.getUTCFullYear()
+    ) {
+      return `${first.getUTCDate()} – ${last.getUTCDate()} de ${firstMonth} de ${first.getUTCFullYear()}`;
+    }
+
+    if (first.getUTCFullYear() === last.getUTCFullYear()) {
+      return `${first.getUTCDate()} de ${firstMonth} – ${last.getUTCDate()} de ${lastMonth} de ${first.getUTCFullYear()}`;
+    }
+
+    return `${first.getUTCDate()} de ${firstMonth} de ${first.getUTCFullYear()} – ${last.getUTCDate()} de ${lastMonth} de ${last.getUTCFullYear()}`;
   }
 
-  private parseDate(date: string): Date {
-    const [year, month, day] = date
-      .split('-')
-      .map(Number);
+  private parseDate(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
 
-    return new Date(
-      Date.UTC(
-        year,
-        month - 1,
-        day,
-      ),
-    );
+    return new Date(Date.UTC(year, month - 1, day));
   }
 
   private formatDate(date: Date): string {
-    const year = date.getUTCFullYear();
-    const month = String(
-      date.getUTCMonth() + 1,
-    ).padStart(2, '0');
-    const day = String(
-      date.getUTCDate(),
-    ).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    return [
+      date.getUTCFullYear(),
+      String(date.getUTCMonth() + 1).padStart(2, '0'),
+      String(date.getUTCDate()).padStart(2, '0'),
+    ].join('-');
   }
 
   private capitalize(value: string): string {
-    return (
-      value.charAt(0).toUpperCase() +
-      value.slice(1)
-    );
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 }
