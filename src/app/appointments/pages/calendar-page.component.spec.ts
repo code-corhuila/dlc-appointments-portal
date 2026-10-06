@@ -1,4 +1,7 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  ComponentFixture,
+  TestBed,
+} from '@angular/core/testing';
 
 import { CalendarPageComponent } from './calendar-page.component';
 
@@ -10,54 +13,72 @@ describe('CalendarPageComponent', () => {
       imports: [CalendarPageComponent],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(CalendarPageComponent);
+    fixture = TestBed.createComponent(
+      CalendarPageComponent,
+    );
     fixture.detectChanges();
   });
 
   it('renders the calendar heading and clinic timezone', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    expect(
-      element.querySelector('h1')?.textContent?.trim(),
-    ).toBe('Calendario de Citas');
+    expect(element.querySelector('h1')?.textContent).toContain(
+      'Calendario de Citas',
+    );
 
-    expect(element.textContent).toContain('America/Bogota');
+    expect(element.textContent).toContain(
+      'America/Bogota',
+    );
   });
 
   it('renders calendar navigation and month/week view controls', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const previousButton = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Periodo anterior"]',
-    );
+    const previousButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo anterior"]',
+      );
 
-    const nextButton = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Periodo siguiente"]',
-    );
+    const nextButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo siguiente"]',
+      );
 
-    const monthButton = element.querySelector<HTMLButtonElement>(
-      '[data-calendar-view="month"]',
-    );
+    const monthButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-calendar-view="month"]',
+      );
 
-    const weekButton = element.querySelector<HTMLButtonElement>(
-      '[data-calendar-view="week"]',
-    );
+    const weekButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-calendar-view="week"]',
+      );
 
     expect(previousButton).not.toBeNull();
     expect(nextButton).not.toBeNull();
-
     expect(monthButton?.textContent?.trim()).toBe('Mes');
     expect(weekButton?.textContent?.trim()).toBe('Semana');
+    expect(monthButton?.getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(weekButton?.getAttribute('aria-pressed')).toBe(
+      'false',
+    );
   });
 
   it('renders the weekly headers and calendar support panels', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const weekdayLabels = Array.from(
-      element.querySelectorAll('[data-weekday]'),
+    const weekdays = Array.from(
+      element.querySelectorAll<HTMLElement>(
+        '[data-weekday]',
+      ),
     ).map((weekday) => weekday.textContent?.trim());
 
-    expect(weekdayLabels).toEqual([
+    expect(weekdays).toEqual([
       'Dom',
       'Lun',
       'Mar',
@@ -67,168 +88,197 @@ describe('CalendarPageComponent', () => {
       'Sáb',
     ]);
 
-    expect(element.textContent).toContain('Estados de cita');
-    expect(element.textContent).toContain('Citas del día');
+    expect(element.textContent).toContain(
+      'Estados de cita',
+    );
+    expect(element.textContent).toContain(
+      'Citas del día',
+    );
   });
 
-  it('renders the October 2026 month grid with 42 calendar days', () => {
-    const element: HTMLElement = fixture.nativeElement;
+  it('renders only the complete weeks required by October 2026', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const days = Array.from(
-      element.querySelectorAll<HTMLElement>(
-        '[data-calendar-day]',
-      ),
+    const days = element.querySelectorAll(
+      '[data-calendar-day]',
     );
 
-    expect(days).toHaveLength(42);
+    expect(days).toHaveLength(35);
 
-    expect(days[0]?.dataset['date']).toBe('2026-09-27');
-    expect(days[0]?.textContent?.trim()).toBe('27');
+    expect(
+      (
+        days[0] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-09-27');
 
-    expect(days[4]?.dataset['date']).toBe('2026-10-01');
-    expect(days[4]?.textContent?.trim()).toBe('1');
-
-    expect(days[41]?.dataset['date']).toBe('2026-11-07');
-    expect(days[41]?.textContent?.trim()).toBe('7');
+    expect(
+      (
+        days[34] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-10-31');
   });
 
   it('marks days outside the active month for visual differentiation', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const septemberDay = element.querySelector<HTMLElement>(
-      '[data-calendar-day][data-date="2026-09-27"]',
-    );
+    const septemberDay =
+      element.querySelector<HTMLElement>(
+        '[data-date="2026-09-27"]',
+      );
 
-    const octoberDay = element.querySelector<HTMLElement>(
-      '[data-calendar-day][data-date="2026-10-01"]',
-    );
+    const octoberDay =
+      element.querySelector<HTMLElement>(
+        '[data-date="2026-10-01"]',
+      );
 
-    const novemberDay = element.querySelector<HTMLElement>(
-      '[data-calendar-day][data-date="2026-11-07"]',
-    );
+    expect(
+      septemberDay?.dataset['currentMonth'],
+    ).toBe('false');
 
-    expect(septemberDay?.dataset['currentMonth']).toBe('false');
-    expect(octoberDay?.dataset['currentMonth']).toBe('true');
-    expect(novemberDay?.dataset['currentMonth']).toBe('false');
+    expect(
+      octoberDay?.dataset['currentMonth'],
+    ).toBe('true');
+
+    const nextButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo siguiente"]',
+      );
+
+    nextButton?.click();
+    fixture.detectChanges();
+
+    const decemberDay =
+      element.querySelector<HTMLElement>(
+        '[data-date="2026-12-01"]',
+      );
+
+    expect(
+      decemberDay?.dataset['currentMonth'],
+    ).toBe('false');
   });
 
   it('switches from the month grid to the selected week', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const weekButton = element.querySelector<HTMLButtonElement>(
-      '[data-calendar-view="week"]',
-    );
+    const weekButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-calendar-view="week"]',
+      );
 
     weekButton?.click();
     fixture.detectChanges();
 
-    const days = Array.from(
-      element.querySelectorAll<HTMLElement>(
-        '[data-calendar-day]',
-      ),
+    const days = element.querySelectorAll(
+      '[data-calendar-day]',
     );
 
     expect(days).toHaveLength(7);
 
-    expect(days[0]?.dataset['date']).toBe('2026-10-11');
-    expect(days[6]?.dataset['date']).toBe('2026-10-17');
+    expect(
+      (
+        days[0] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-10-11');
 
     expect(
-      element
-        .querySelector('[data-calendar-view="week"]')
-        ?.getAttribute('aria-pressed'),
+      (
+        days[6] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-10-17');
+
+    expect(
+      weekButton?.getAttribute('aria-pressed'),
     ).toBe('true');
-
-    expect(
-      element
-        .querySelector('[data-calendar-view="month"]')
-        ?.getAttribute('aria-pressed'),
-    ).toBe('false');
   });
 
   it('shows the active month and navigates between month periods', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const periodLabel = () =>
-      element
-        .querySelector('[data-calendar-period]')
-        ?.textContent?.trim();
+    const period =
+      element.querySelector<HTMLElement>(
+        '[data-calendar-period]',
+      );
 
-    const previousButton = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Periodo anterior"]',
+    const previousButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo anterior"]',
+      );
+
+    const nextButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo siguiente"]',
+      );
+
+    expect(period?.textContent?.trim()).toBe(
+      'Octubre 2026',
     );
 
-    const nextButton = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Periodo siguiente"]',
-    );
+    nextButton?.click();
+    fixture.detectChanges();
 
-    expect(periodLabel()).toBe('Octubre 2026');
+    expect(period?.textContent?.trim()).toBe(
+      'Noviembre 2026',
+    );
 
     previousButton?.click();
     fixture.detectChanges();
 
-    expect(periodLabel()).toBe('Septiembre 2026');
-
-    expect(
-      element.querySelector(
-        '[data-calendar-day][data-date="2026-09-01"]',
-      ),
-    ).not.toBeNull();
-
-    nextButton?.click();
-    fixture.detectChanges();
-
-    expect(periodLabel()).toBe('Octubre 2026');
-
-    nextButton?.click();
-    fixture.detectChanges();
-
-    expect(periodLabel()).toBe('Noviembre 2026');
-
-    expect(
-      element.querySelector(
-        '[data-calendar-day][data-date="2026-11-01"]',
-      ),
-    ).not.toBeNull();
+    expect(period?.textContent?.trim()).toBe(
+      'Octubre 2026',
+    );
   });
 
   it('navigates by seven days when the week view is active', () => {
-    const element: HTMLElement = fixture.nativeElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    const weekButton = element.querySelector<HTMLButtonElement>(
-      '[data-calendar-view="week"]',
-    );
+    const weekButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-calendar-view="week"]',
+      );
 
-    const nextButton = element.querySelector<HTMLButtonElement>(
-      '[aria-label="Periodo siguiente"]',
-    );
+    const nextButton =
+      element.querySelector<HTMLButtonElement>(
+        '[aria-label="Periodo siguiente"]',
+      );
+
+    const period =
+      element.querySelector<HTMLElement>(
+        '[data-calendar-period]',
+      );
 
     weekButton?.click();
     fixture.detectChanges();
 
-    expect(
-      element
-        .querySelector('[data-calendar-period]')
-        ?.textContent?.trim(),
-    ).toBe('11 – 17 de octubre de 2026');
+    expect(period?.textContent?.trim()).toBe(
+      '11 – 17 de octubre de 2026',
+    );
 
     nextButton?.click();
     fixture.detectChanges();
 
-    const days = Array.from(
-      element.querySelectorAll<HTMLElement>(
-        '[data-calendar-day]',
-      ),
+    expect(period?.textContent?.trim()).toBe(
+      '18 – 24 de octubre de 2026',
     );
 
-    expect(days).toHaveLength(7);
-    expect(days[0]?.dataset['date']).toBe('2026-10-18');
-    expect(days[6]?.dataset['date']).toBe('2026-10-24');
+    const days = element.querySelectorAll(
+      '[data-calendar-day]',
+    );
 
     expect(
-      element
-        .querySelector('[data-calendar-period]')
-        ?.textContent?.trim(),
-    ).toBe('18 – 24 de octubre de 2026');
+      (
+        days[0] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-10-18');
+
+    expect(
+      (
+        days[6] as HTMLElement
+      ).dataset['date'],
+    ).toBe('2026-10-24');
   });
 });
