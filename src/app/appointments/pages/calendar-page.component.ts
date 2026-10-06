@@ -1,7 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  signal,
 } from '@angular/core';
+
+import { buildCalendarDays } from '../domain/calendar-grid';
+import { CalendarView } from '../domain/calendar-range';
 
 @Component({
   selector: 'app-calendar-page',
@@ -45,6 +50,8 @@ import {
             <button
               type="button"
               data-calendar-view="month"
+              [attr.aria-pressed]="view() === 'month'"
+              (click)="selectView('month')"
             >
               Mes
             </button>
@@ -52,6 +59,8 @@ import {
             <button
               type="button"
               data-calendar-view="week"
+              [attr.aria-pressed]="view() === 'week'"
+              (click)="selectView('week')"
             >
               Semana
             </button>
@@ -75,7 +84,19 @@ import {
           <div
             class="calendar-grid"
             aria-label="Días del calendario"
-          ></div>
+          >
+            @for (day of days(); track day.date) {
+              <button
+                type="button"
+                class="calendar-day"
+                data-calendar-day
+                [attr.data-date]="day.date"
+                [attr.data-current-month]="day.isCurrentMonth"
+              >
+                {{ dayNumber(day.date) }}
+              </button>
+            }
+          </div>
         </section>
 
         <aside
@@ -95,6 +116,8 @@ import {
   `,
 })
 export class CalendarPageComponent {
+  private readonly anchorDate = '2026-10-15';
+
   readonly weekdays = [
     'Dom',
     'Lun',
@@ -104,4 +127,21 @@ export class CalendarPageComponent {
     'Vie',
     'Sáb',
   ] as const;
+
+  readonly view = signal<CalendarView>('month');
+
+  readonly days = computed(() =>
+    buildCalendarDays(
+      this.anchorDate,
+      this.view(),
+    ),
+  );
+
+  selectView(view: CalendarView): void {
+    this.view.set(view);
+  }
+
+  dayNumber(date: string): number {
+    return Number(date.slice(-2));
+  }
 }
