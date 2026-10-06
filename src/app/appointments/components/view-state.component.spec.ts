@@ -54,11 +54,10 @@ describe('ViewStateComponent', () => {
     fixture.componentRef.setInput('state', 'error');
     fixture.detectChanges();
 
-    const element = fixture.nativeElement as HTMLElement;
-
-const button = element.querySelector<HTMLButtonElement>(
-  '[data-action="retry"]',
-);
+    const button =
+      fixture.nativeElement.querySelector<HTMLButtonElement>(
+        '[data-action="retry"]',
+      );
 
     button?.click();
 
