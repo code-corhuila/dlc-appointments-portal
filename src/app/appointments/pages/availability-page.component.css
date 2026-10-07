@@ -1,0 +1,91 @@
+:host {
+  display: block;
+  min-height: 100%;
+  background: #f7f9fa;
+  color: #1f2933;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.availability-page { max-width: 1180px; margin: 0 auto; padding: 24px; }
+.availability-page > header { margin-bottom: 24px; }
+.availability-page > header h1 { margin: 0 0 6px; font-size: 24px; }
+.availability-page > header p { margin: 0; color: #66737a; }
+
+.availability-page > section {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #d6dee2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.availability-page h2 { margin: 0 0 16px; font-size: 18px; }
+.availability-page h3 { margin: 16px 0 12px; font-size: 16px; }
+label { display: block; margin: 10px 0 6px; font-size: 14px; font-weight: 600; }
+
+input,
+select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d6dee2;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+}
+
+[data-day='monday'] {
+  padding: 16px;
+  border: 1px solid #eef2f4;
+  border-radius: 10px;
+  background: #f7f9fa;
+}
+
+[data-day='monday'] > div {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+[data-weekly-schedule] > div:not([data-day]) {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eef2f4;
+}
+
+[data-generate-slots] {
+  min-height: 44px;
+  margin-top: 18px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #168e82;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-generate-slots]:hover { background: #0f766e; }
+
+[data-slots-empty] {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed #d6dee2;
+  border-radius: 8px;
+  color: #66737a;
+  text-align: center;
+}
+
+input:focus,
+select:focus,
+button:focus-visible { outline: 3px solid rgba(21, 84, 163, .25); outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .availability-page { padding: 16px; }
+  [data-day='monday'] > div { grid-template-columns: 1fr; }
+}
