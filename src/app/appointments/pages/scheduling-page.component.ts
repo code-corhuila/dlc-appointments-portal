@@ -114,6 +114,7 @@ import {
   `,
 })
 export class SchedulingPageComponent {
+  // TODO(dlc-docs#54): Replace presentation slots with dentist availability-derived slots in the next HU-APT-001 slice.
   readonly availableSlots = [
     '09:00 AM',
     '10:30 AM',
