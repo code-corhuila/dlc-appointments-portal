@@ -2,6 +2,7 @@ import { CalendarPageComponent } from './pages/calendar-page.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
 import { SchedulingPageComponent } from './pages/scheduling-page.component';
+import { AvailabilityPageComponent } from './pages/availability-page.component';
 import { APPOINTMENTS_ROUTES } from './appointments.routes';
 
 describe('APPOINTMENTS_ROUTES', () => {
@@ -22,6 +23,17 @@ describe('APPOINTMENTS_ROUTES', () => {
     expect(schedulingRoute).toBeDefined();
     expect(schedulingRoute?.component).toBe(
       SchedulingPageComponent,
+    );
+  });
+
+  it('provides the availability page route', () => {
+    const availabilityRoute = APPOINTMENTS_ROUTES.find(
+      (route) => route.path === 'availability',
+    );
+
+    expect(availabilityRoute).toBeDefined();
+    expect(availabilityRoute?.component).toBe(
+      AvailabilityPageComponent,
     );
   });
 
