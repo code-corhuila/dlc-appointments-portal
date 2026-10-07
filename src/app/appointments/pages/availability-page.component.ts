@@ -41,9 +41,60 @@ import {
           Defina las horas de atención para cada día de la semana.
         </p>
 
-        <div>
-          <strong>Lunes</strong>
-          <span>08:00 AM - 12:00 PM</span>
+        <div data-day="monday">
+          <h3>Lunes</h3>
+
+          <div>
+            <strong>Turno 1</strong>
+
+            <label for="monday-shift-one-start">
+              Desde
+            </label>
+
+            <input
+              id="monday-shift-one-start"
+              type="time"
+              value="08:00"
+              data-shift-one-start
+            />
+
+            <label for="monday-shift-one-end">
+              Hasta
+            </label>
+
+            <input
+              id="monday-shift-one-end"
+              type="time"
+              value="12:00"
+              data-shift-one-end
+            />
+          </div>
+
+          <div>
+            <strong>Turno 2</strong>
+
+            <label for="monday-shift-two-start">
+              Desde
+            </label>
+
+            <input
+              id="monday-shift-two-start"
+              type="time"
+              value="14:00"
+              data-shift-two-start
+            />
+
+            <label for="monday-shift-two-end">
+              Hasta
+            </label>
+
+            <input
+              id="monday-shift-two-end"
+              type="time"
+              value="18:00"
+              data-shift-two-end
+            />
+          </div>
         </div>
 
         <div>
