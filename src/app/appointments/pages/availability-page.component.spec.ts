@@ -40,6 +40,44 @@ describe('AvailabilityPageComponent', () => {
     ).not.toBeNull();
   });
 
+  it('provides two work shifts for monday', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const monday =
+      element.querySelector('[data-day="monday"]');
+
+    expect(monday).not.toBeNull();
+
+    expect(
+      monday?.querySelector('[data-shift-one-start]'),
+    ).not.toBeNull();
+
+    expect(
+      monday?.querySelector('[data-shift-one-end]'),
+    ).not.toBeNull();
+
+    expect(
+      monday?.querySelector('[data-shift-two-start]'),
+    ).not.toBeNull();
+
+    expect(
+      monday?.querySelector('[data-shift-two-end]'),
+    ).not.toBeNull();
+  });
+
+  it('uses a 30 minute slot duration by default', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const duration =
+      element.querySelector<HTMLSelectElement>(
+        '[data-slot-duration]',
+      );
+
+    expect(duration?.value).toBe('30');
+  });
+
   it('provides availability generation date range', () => {
     const element =
       fixture.nativeElement as HTMLElement;
