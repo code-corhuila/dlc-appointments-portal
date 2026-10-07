@@ -2,9 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 
+import {
+  CALENDAR_SUPPORT_DATA_SOURCE,
+} from '../data/calendar-support-data-source';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
 
@@ -194,6 +198,10 @@ const MONTH_NAMES = [
   `,
 })
 export class CalendarPageComponent {
+  private readonly supportDataSource = inject(
+    CALENDAR_SUPPORT_DATA_SOURCE,
+  );
+
   readonly weekdays = [
     'Dom',
     'Lun',
@@ -212,35 +220,11 @@ export class CalendarPageComponent {
     label: string;
   }[];
 
-  readonly treatmentLegend = [
-    {
-      key: 'cleaning',
-      name: 'Limpieza',
-    },
-    {
-      key: 'surgery',
-      name: 'Cirugía',
-    },
-    {
-      key: 'orthodontics',
-      name: 'Ortodoncia',
-    },
-  ] as const;
+  readonly treatmentLegend =
+    this.supportDataSource.treatmentLegend;
 
-  readonly waitingList = [
-    {
-      name: 'Ana García',
-      treatment: 'Cirugía',
-      treatmentKey: 'surgery',
-      preference: 'Prefiere: Mañanas (9am – 12pm)',
-    },
-    {
-      name: 'Carlos López',
-      treatment: 'Limpieza',
-      treatmentKey: 'cleaning',
-      preference: 'Cualquier horario disponible.',
-    },
-  ] as const;
+  readonly waitingList =
+    this.supportDataSource.waitingList;
 
   private readonly anchorDate = signal('2026-10-15');
 
