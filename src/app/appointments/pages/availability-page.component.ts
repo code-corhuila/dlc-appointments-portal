@@ -1,4 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  signal,
+} from '@angular/core';
 
 @Component({
   selector: 'app-availability-page',
@@ -18,7 +22,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
       <section class="dentist-card">
         <div class="dentist-label">
           <span class="dentist-icon" aria-hidden="true">♙</span>
-          <label for="dentist">Seleccionar Odontólogo / Especialista:</label>
+          <label for="dentist">
+            Seleccionar Odontólogo / Especialista:
+          </label>
         </div>
 
         <select id="dentist" data-dentist-select>
@@ -42,27 +48,45 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
                 <input
                   type="checkbox"
                   [id]="day.key + '-enabled'"
-                  checked
+                  [checked]="isDayEnabled(day.key)"
+                  (change)="
+                    setDayEnabled(
+                      day.key,
+                      $any($event.target).checked
+                    )
+                  "
                 />
-                <label [for]="day.key + '-enabled'">{{ day.label }}</label>
+
+                <label [for]="day.key + '-enabled'">
+                  {{ day.label }}
+                </label>
               </div>
 
               <div class="shift-row">
                 <strong class="shift-badge">Turno 1:</strong>
-                <label [for]="day.key + '-shift-one-start'">Desde:</label>
+
+                <label [for]="day.key + '-shift-one-start'">
+                  Desde:
+                </label>
+
                 <input
                   [id]="day.key + '-shift-one-start'"
                   type="time"
                   value="08:00"
                   data-shift-one-start
+                  [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-one-end'">Hasta:</label>
+                <label [for]="day.key + '-shift-one-end'">
+                  Hasta:
+                </label>
+
                 <input
                   [id]="day.key + '-shift-one-end'"
                   type="time"
                   value="12:00"
                   data-shift-one-end
+                  [disabled]="!isDayEnabled(day.key)"
                 />
               </div>
 
@@ -71,7 +95,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
                   type="checkbox"
                   [id]="day.key + '-second-shift'"
                   checked
+                  [disabled]="!isDayEnabled(day.key)"
                 />
+
                 <label [for]="day.key + '-second-shift'">
                   + Segundo Turno (Tarde)
                 </label>
@@ -79,28 +105,41 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 
               <div class="shift-row">
                 <strong class="shift-badge">Turno 2:</strong>
-                <label [for]="day.key + '-shift-two-start'">Desde:</label>
+
+                <label [for]="day.key + '-shift-two-start'">
+                  Desde:
+                </label>
+
                 <input
                   [id]="day.key + '-shift-two-start'"
                   type="time"
                   value="14:00"
                   data-shift-two-start
+                  [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-two-end'">Hasta:</label>
+                <label [for]="day.key + '-shift-two-end'">
+                  Hasta:
+                </label>
+
                 <input
                   [id]="day.key + '-shift-two-end'"
                   type="time"
                   value="18:00"
                   data-shift-two-end
+                  [disabled]="!isDayEnabled(day.key)"
                 />
               </div>
 
               <div class="slot-duration">
-                <label [for]="day.key + '-slot-duration'">Duración Slot:</label>
+                <label [for]="day.key + '-slot-duration'">
+                  Duración Slot:
+                </label>
+
                 <select
                   [id]="day.key + '-slot-duration'"
                   data-slot-duration
+                  [disabled]="!isDayEnabled(day.key)"
                 >
                   <option value="30">30 Min</option>
                 </select>
@@ -149,4 +188,23 @@ export class AvailabilityPageComponent {
     { key: 'thursday', label: 'Jueves' },
     { key: 'friday', label: 'Viernes' },
   ] as const;
+
+  private readonly enabledDays = signal<Record<string, boolean>>({
+    monday: true,
+    tuesday: true,
+    wednesday: true,
+    thursday: true,
+    friday: true,
+  });
+
+  protected isDayEnabled(day: string): boolean {
+    return this.enabledDays()[day] ?? false;
+  }
+
+  protected setDayEnabled(day: string, enabled: boolean): void {
+    this.enabledDays.update((current) => ({
+      ...current,
+      [day]: enabled,
+    }));
+  }
 }
