@@ -55,6 +55,17 @@ import { ApiError } from '../model/api-error';
         </div>
       }
 
+      @if (availabilityEmpty()) {
+        <div
+          data-availability-empty
+          aria-live="polite"
+        >
+          <p>
+            No hay disponibilidad configurada para este odontólogo.
+          </p>
+        </div>
+      }
+
       @if (availabilityError(); as error) {
         <div
           data-availability-error
@@ -226,6 +237,7 @@ export class AvailabilityPageComponent {
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
   protected readonly availabilityLoading = signal(false);
+  protected readonly availabilityEmpty = signal(false);
   protected readonly availabilityError =
     signal<ApiError | null>(null);
 
@@ -244,11 +256,13 @@ export class AvailabilityPageComponent {
     if (!dentistId) {
       this.selectedDentistId = null;
       this.availabilityError.set(null);
+      this.availabilityEmpty.set(false);
       return;
     }
 
     this.selectedDentistId = dentistId;
     this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
 
     this.api
@@ -259,7 +273,13 @@ export class AvailabilityPageComponent {
         }),
       )
       .subscribe({
+        next: (availability) => {
+          this.availabilityEmpty.set(
+            availability.intervals.length === 0,
+          );
+        },
         error: (error: ApiError) => {
+          this.availabilityEmpty.set(false);
           this.availabilityError.set(error);
         },
       });
