@@ -11,7 +11,7 @@ export const APPOINTMENTS_ROUTES: Routes = [
     component: CalendarPageComponent,
   },
   {
-    path: 'appointments/new',
+    path: 'new',
     component: SchedulingPageComponent,
   },
   {
