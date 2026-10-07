@@ -16,7 +16,7 @@ describe('APPOINTMENTS_ROUTES', () => {
 
   it('provides the scheduling page route', () => {
     const schedulingRoute = APPOINTMENTS_ROUTES.find(
-      (route) => route.path === 'appointments/new',
+      (route) => route.path === 'new',
     );
 
     expect(schedulingRoute).toBeDefined();
