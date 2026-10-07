@@ -7,6 +7,7 @@ import {
   selector: 'app-availability-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './availability-page.component.css',
   template: `
     <main class="availability-page">
       <header>
