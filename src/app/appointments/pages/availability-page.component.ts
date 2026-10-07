@@ -14,6 +14,7 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
   selector: 'app-availability-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './availability-page.component.css',
   template: `
     <main class="availability-page">
       <header class="page-header">

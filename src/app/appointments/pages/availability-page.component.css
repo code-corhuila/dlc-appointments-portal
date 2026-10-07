@@ -1,0 +1,240 @@
+:host {
+  display: block;
+  min-height: 100%;
+  background: #f7f9fa;
+  color: #1f2933;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.availability-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  margin-bottom: 22px;
+}
+
+.page-header h1 {
+  margin: 0 0 6px;
+  color: #168e82;
+  font-size: 24px;
+}
+
+.page-header p {
+  margin: 0;
+  color: #66737a;
+}
+
+.dentist-card {
+  display: grid;
+  grid-template-columns: 1fr minmax(280px, 420px);
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid #d6dee2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.dentist-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dentist-label label {
+  margin: 0;
+  font-weight: 700;
+}
+
+.availability-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-panel,
+.generator-panel,
+.generated-slots {
+  border: 1px solid #d6dee2;
+  border-radius: 12px;
+  background: #fff;
+  padding: 20px;
+}
+
+.panel-header {
+  margin-bottom: 16px;
+}
+
+.panel-header h2,
+.generated-slots h2 {
+  margin: 0 0 6px;
+  color: #168e82;
+  font-size: 18px;
+}
+
+.panel-header p {
+  margin: 0;
+  color: #66737a;
+  font-size: 14px;
+}
+
+.day-card {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #eef2f4;
+  border-radius: 10px;
+  background: #f7f9fa;
+}
+
+.day-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-heading label {
+  margin: 0;
+  font-weight: 700;
+}
+
+.day-heading input,
+.second-shift-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #168e82;
+}
+
+.shift-row {
+  display: grid;
+  grid-template-columns: 76px 50px 1fr 50px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.shift-badge {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #cbefeb;
+  color: #0f766e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.second-shift-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 4px 84px;
+  color: #168e82;
+}
+
+.second-shift-toggle label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.slot-duration {
+  display: grid;
+  grid-template-columns: 110px 120px;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0 0 84px;
+}
+
+label {
+  font-size: 14px;
+}
+
+input:not([type='checkbox']),
+select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #d6dee2;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+}
+
+.generator-panel > label {
+  display: block;
+  margin: 16px 0 6px;
+  font-weight: 600;
+}
+
+[data-generate-slots] {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #168e82;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-generate-slots]:hover {
+  background: #0f766e;
+}
+
+.generated-slots {
+  margin-top: 20px;
+}
+
+[data-slots-empty] {
+  margin: 14px 0 0;
+  padding: 18px;
+  border: 1px dashed #d6dee2;
+  border-radius: 8px;
+  color: #66737a;
+  text-align: center;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 3px solid rgba(21, 84, 163, 0.22);
+  outline-offset: 2px;
+}
+
+@media (max-width: 850px) {
+  .availability-layout,
+  .dentist-card {
+    grid-template-columns: 1fr;
+  }
+
+  .shift-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .shift-badge {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .second-shift-toggle,
+  .slot-duration {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .availability-page {
+    padding: 16px;
+  }
+
+  .shift-row,
+  .slot-duration {
+    grid-template-columns: 1fr;
+  }
+}
