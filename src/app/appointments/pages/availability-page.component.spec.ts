@@ -127,6 +127,25 @@ describe('AvailabilityPageComponent', () => {
     ).toBeNull();
   });
 
+  it('shows empty state when dentist has no availability intervals', () => {
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    fixture.detectChanges();
+
+    const emptyState =
+      element.querySelector(
+        '[data-availability-empty]',
+      );
+
+    expect(emptyState).not.toBeNull();
+    expect(emptyState?.textContent).toContain(
+      'No hay disponibilidad configurada para este odontólogo.',
+    );
+  });
+
   it('shows an error and retries the selected dentist availability', () => {
     const apiError: ApiError = {
       error: 'SERVICE_UNAVAILABLE',
