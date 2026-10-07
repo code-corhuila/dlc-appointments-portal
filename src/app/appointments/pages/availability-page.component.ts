@@ -1,9 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   signal,
 } from '@angular/core';
 
+import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
@@ -32,7 +34,11 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
           </label>
         </div>
 
-        <select id="dentist" data-dentist-select>
+        <select
+          id="dentist"
+          data-dentist-select
+          (change)="loadAvailability($any($event.target).value)"
+        >
           <option value="">Seleccione un odontólogo</option>
         </select>
       </section>
@@ -183,8 +189,11 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
   `,
 })
 export class AvailabilityPageComponent {
+  private readonly api = inject(AppointmentsApiService);
+
   protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
-  protected readonly slotDurationMinutes = DEFAULT_SLOT_DURATION_MINUTES;
+  protected readonly slotDurationMinutes =
+    DEFAULT_SLOT_DURATION_MINUTES;
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
   private readonly enabledDays = signal<Record<string, boolean>>(
@@ -196,11 +205,24 @@ export class AvailabilityPageComponent {
     ),
   );
 
+  protected loadAvailability(dentistId: string): void {
+    if (!dentistId) {
+      return;
+    }
+
+    this.api
+      .getDentistAvailability(dentistId)
+      .subscribe();
+  }
+
   protected isDayEnabled(day: string): boolean {
     return this.enabledDays()[day] ?? false;
   }
 
-  protected setDayEnabled(day: string, enabled: boolean): void {
+  protected setDayEnabled(
+    day: string,
+    enabled: boolean,
+  ): void {
     this.enabledDays.update((current) => ({
       ...current,
       [day]: enabled,
