@@ -96,6 +96,41 @@ describe('AvailabilityPageComponent', () => {
     ]);
   });
 
+  it('renders loaded availability interval in the weekly schedule', () => {
+    availabilityResponse$ = of({
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-05T09:30:00-05:00',
+          endAt: '2026-10-05T11:30:00-05:00',
+        },
+      ],
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const monday =
+      element.querySelector(
+        '[data-day="monday"]',
+      ) as HTMLElement;
+
+    const start =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-start]',
+      );
+
+    const end =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-end]',
+      );
+
+    expect(start?.value).toBe('09:30');
+    expect(end?.value).toBe('11:30');
+  });
+
   it('shows loading and cancels the previous dentist request', () => {
     const firstResponse =
       new Subject<DentistAvailability>();
