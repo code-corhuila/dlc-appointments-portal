@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  signal,
 } from '@angular/core';
 
 @Component({
@@ -44,6 +45,19 @@ import {
 
         <h3>Horarios disponibles</h3>
 
+        <div>
+          @for (slot of availableSlots; track slot) {
+            <button
+              type="button"
+              data-available-slot
+              [attr.aria-pressed]="selectedSlot() === slot"
+              (click)="selectSlot(slot)"
+            >
+              {{ slot }}
+            </button>
+          }
+        </div>
+
         <p>
           Zona horaria:
           <strong>America/Bogota</strong>
@@ -82,7 +96,11 @@ import {
 
         <p>Paciente: No seleccionado</p>
         <p>Odontólogo: No seleccionado</p>
-        <p>Fecha y hora: No seleccionada</p>
+
+        <p data-selected-slot>
+          Fecha y hora:
+          {{ selectedSlot() ?? 'No seleccionada' }}
+        </p>
 
         <button
           type="button"
@@ -94,4 +112,18 @@ import {
     </main>
   `,
 })
-export class SchedulingPageComponent {}
+export class SchedulingPageComponent {
+  readonly availableSlots = [
+    '09:00 AM',
+    '10:30 AM',
+    '11:15 AM',
+    '02:00 PM',
+    '04:30 PM',
+  ];
+
+  readonly selectedSlot = signal<string | null>(null);
+
+  selectSlot(slot: string): void {
+    this.selectedSlot.set(slot);
+  }
+}
