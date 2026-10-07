@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { AvailabilityPageComponent } from './pages/availability-page.component';
 import { CalendarPageComponent } from './pages/calendar-page.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
@@ -13,6 +14,10 @@ export const APPOINTMENTS_ROUTES: Routes = [
   {
     path: 'new',
     component: SchedulingPageComponent,
+  },
+  {
+    path: 'availability',
+    component: AvailabilityPageComponent,
   },
   {
     path: 'forbidden',
