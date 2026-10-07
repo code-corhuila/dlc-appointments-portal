@@ -1,5 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import {
+  Observable,
+  of,
+  Subject,
+} from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { DentistAvailability } from '../model/availability';
@@ -8,6 +12,7 @@ import { AvailabilityPageComponent } from './availability-page.component';
 describe('AvailabilityPageComponent', () => {
   let fixture: ComponentFixture<AvailabilityPageComponent>;
   let requestedDentistIds: string[];
+  let availabilityResponse$: Observable<DentistAvailability>;
 
   const availability: DentistAvailability = {
     id: 'availability-123',
@@ -19,11 +24,12 @@ describe('AvailabilityPageComponent', () => {
 
   beforeEach(async () => {
     requestedDentistIds = [];
+    availabilityResponse$ = of(availability);
 
     const api = {
       getDentistAvailability: (dentistId: string) => {
         requestedDentistIds.push(dentistId);
-        return of(availability);
+        return availabilityResponse$;
       },
     } as Pick<
       AppointmentsApiService,
@@ -80,37 +86,43 @@ describe('AvailabilityPageComponent', () => {
   });
 
   it('loads availability when a dentist is selected', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const select =
-      element.querySelector<HTMLSelectElement>(
-        '[data-dentist-select]',
-      );
-
-    expect(select).not.toBeNull();
-
-    const dentistOption =
-      document.createElement('option');
-
-    dentistOption.value = 'dentist-123';
-    dentistOption.textContent = 'Dentist test';
-
-    select?.append(dentistOption);
-
-    if (select) {
-      select.value = 'dentist-123';
-
-      select.dispatchEvent(
-        new Event('change'),
-      );
-    }
-
-    fixture.detectChanges();
+    selectDentist('dentist-123');
 
     expect(requestedDentistIds).toEqual([
       'dentist-123',
     ]);
+  });
+
+  it('shows loading while dentist availability is pending', () => {
+    const pendingAvailability =
+      new Subject<DentistAvailability>();
+
+    availabilityResponse$ =
+      pendingAvailability.asObservable();
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-availability-loading]',
+      ),
+    ).not.toBeNull();
+
+    pendingAvailability.next(availability);
+    pendingAvailability.complete();
+
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-availability-loading]',
+      ),
+    ).toBeNull();
   });
 
   it('disables monday schedule fields when monday is disabled', () => {
@@ -168,4 +180,34 @@ describe('AvailabilityPageComponent', () => {
       'No hay slots generados.',
     );
   });
+
+  function selectDentist(dentistId: string): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const select =
+      element.querySelector<HTMLSelectElement>(
+        '[data-dentist-select]',
+      );
+
+    expect(select).not.toBeNull();
+
+    const dentistOption =
+      document.createElement('option');
+
+    dentistOption.value = dentistId;
+    dentistOption.textContent = 'Dentist test';
+
+    select?.append(dentistOption);
+
+    if (select) {
+      select.value = dentistId;
+
+      select.dispatchEvent(
+        new Event('change'),
+      );
+    }
+
+    fixture.detectChanges();
+  }
 });
