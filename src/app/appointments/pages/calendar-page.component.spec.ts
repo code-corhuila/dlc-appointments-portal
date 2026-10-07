@@ -3,6 +3,10 @@ import {
   TestBed,
 } from '@angular/core/testing';
 
+import {
+  CALENDAR_SUPPORT_DATA_SOURCE,
+  CALENDAR_SUPPORT_FIXTURE_DATA,
+} from '../data/calendar-support-data-source';
 import { CalendarPageComponent } from './calendar-page.component';
 
 describe('CalendarPageComponent', () => {
@@ -11,6 +15,12 @@ describe('CalendarPageComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [CalendarPageComponent],
+      providers: [
+        {
+          provide: CALENDAR_SUPPORT_DATA_SOURCE,
+          useValue: CALENDAR_SUPPORT_FIXTURE_DATA,
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(
@@ -89,10 +99,11 @@ describe('CalendarPageComponent', () => {
     ]);
 
     expect(element.textContent).toContain(
-      'Estados de cita',
+      'Tratamientos',
     );
+
     expect(element.textContent).toContain(
-      'Citas del día',
+      'Lista de Espera',
     );
   });
 

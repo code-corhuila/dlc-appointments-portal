@@ -2,9 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 
+import {
+  CALENDAR_SUPPORT_DATA_SOURCE,
+} from '../data/calendar-support-data-source';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
 
@@ -31,94 +35,162 @@ const MONTH_NAMES = [
   template: `
     <main class="calendar-page">
       <header class="calendar-header">
-        <div>
+        <div class="calendar-heading">
           <h1>Calendario de Citas</h1>
+
           <p>
             Consulta tu agenda de citas.
             <span>America/Bogota</span>
           </p>
         </div>
 
-        <div class="calendar-toolbar">
-          <div class="period-navigation">
-            <button
-              type="button"
-              aria-label="Periodo anterior"
-              (click)="previousPeriod()"
-            >
-              ‹
-            </button>
-
-            <strong data-calendar-period>
-              {{ periodLabel() }}
-            </strong>
-
-            <button
-              type="button"
-              aria-label="Periodo siguiente"
-              (click)="nextPeriod()"
-            >
-              ›
-            </button>
-          </div>
-
-          <div
-            class="view-switcher"
-            aria-label="Vista del calendario"
+        <div class="period-navigation">
+          <button
+            type="button"
+            aria-label="Periodo anterior"
+            (click)="previousPeriod()"
           >
-            @for (option of viewOptions; track option.value) {
-              <button
-                type="button"
-                [attr.data-calendar-view]="option.value"
-                [attr.aria-pressed]="view() === option.value"
-                (click)="selectView(option.value)"
-              >
-                {{ option.label }}
-              </button>
-            }
-          </div>
+            ‹
+          </button>
+
+          <strong data-calendar-period>
+            {{ periodLabel() }}
+          </strong>
+
+          <button
+            type="button"
+            aria-label="Periodo siguiente"
+            (click)="nextPeriod()"
+          >
+            ›
+          </button>
         </div>
       </header>
 
       <section class="calendar-layout">
-        <section
-          class="calendar-card"
-          aria-label="Calendario de citas"
-        >
-          <div class="calendar-weekdays">
-            @for (weekday of weekdays; track weekday) {
-              <span data-weekday>{{ weekday }}</span>
-            }
+        <div class="calendar-main">
+          <div class="calendar-view-controls">
+            <div
+              class="view-switcher"
+              aria-label="Vista del calendario"
+            >
+              @for (option of viewOptions; track option.value) {
+                <button
+                  type="button"
+                  [attr.data-calendar-view]="option.value"
+                  [attr.aria-pressed]="view() === option.value"
+                  (click)="selectView(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
           </div>
 
-          <div
-            class="calendar-grid"
-            aria-label="Días del calendario"
+          <section
+            class="calendar-card"
+            aria-label="Calendario de citas"
           >
-            @for (day of days(); track day.date) {
-              <button
-                type="button"
-                class="calendar-day"
-                data-calendar-day
-                [attr.data-date]="day.date"
-                [attr.data-current-month]="day.isCurrentMonth"
-              >
-                {{ dayNumber(day.date) }}
-              </button>
-            }
-          </div>
-        </section>
+            <div class="calendar-weekdays">
+              @for (weekday of weekdays; track weekday) {
+                <span data-weekday>
+                  {{ weekday }}
+                </span>
+              }
+            </div>
+
+            <div
+              class="calendar-grid"
+              aria-label="Días del calendario"
+            >
+              @for (day of days(); track day.date) {
+                <button
+                  type="button"
+                  class="calendar-day"
+                  data-calendar-day
+                  [attr.data-date]="day.date"
+                  [attr.data-current-month]="day.isCurrentMonth"
+                >
+                  {{ dayNumber(day.date) }}
+                </button>
+              }
+            </div>
+          </section>
+        </div>
 
         <aside
           class="calendar-sidebar"
           aria-label="Información del calendario"
         >
-          <section class="calendar-panel">
-            <h2>Estados de cita</h2>
+          <section
+            class="calendar-panel treatment-panel"
+            data-demo-fixture
+          >
+            <h2>Tratamientos</h2>
+
+            <ul class="treatment-list">
+              @for (
+                treatment of treatmentLegend;
+                track treatment.name
+              ) {
+                <li>
+                  <span
+                    class="treatment-dot"
+                    [attr.data-treatment]="treatment.key"
+                  ></span>
+
+                  <span>{{ treatment.name }}</span>
+                </li>
+              }
+            </ul>
           </section>
 
-          <section class="calendar-panel">
-            <h2>Citas del día</h2>
+          <section
+            class="calendar-panel waiting-list-panel"
+            data-demo-fixture
+          >
+            <header class="waiting-list-header">
+              <h2>Lista de Espera</h2>
+
+              <span class="waiting-count">
+                {{ waitingList.length }}
+              </span>
+            </header>
+
+            <div class="waiting-list">
+              @for (
+                patient of waitingList;
+                track patient.name
+              ) {
+                <article class="waiting-card">
+                  <div class="waiting-card-heading">
+                    <strong>
+                      {{ patient.name }}
+                    </strong>
+
+                    <span
+                      class="treatment-tag"
+                      [attr.data-treatment]="patient.treatmentKey"
+                    >
+                      {{ patient.treatment }}
+                    </span>
+                  </div>
+
+                  <p>
+                    {{ patient.preference }}
+                  </p>
+
+                  <button
+                    type="button"
+                    class="assign-button"
+                    disabled
+                    aria-disabled="true"
+                  >
+                    Asignar Turno
+                  </button>
+                </article>
+              }
+            </div>
           </section>
         </aside>
       </section>
@@ -126,6 +198,10 @@ const MONTH_NAMES = [
   `,
 })
 export class CalendarPageComponent {
+  private readonly supportDataSource = inject(
+    CALENDAR_SUPPORT_DATA_SOURCE,
+  );
+
   readonly weekdays = [
     'Dom',
     'Lun',
@@ -143,6 +219,12 @@ export class CalendarPageComponent {
     value: CalendarView;
     label: string;
   }[];
+
+  readonly treatmentLegend =
+    this.supportDataSource.treatmentLegend;
+
+  readonly waitingList =
+    this.supportDataSource.waitingList;
 
   private readonly anchorDate = signal('2026-10-15');
 
