@@ -1,6 +1,7 @@
 import { CalendarPageComponent } from './pages/calendar-page.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
+import { SchedulingPageComponent } from './pages/scheduling-page.component';
 import { APPOINTMENTS_ROUTES } from './appointments.routes';
 
 describe('APPOINTMENTS_ROUTES', () => {
@@ -11,6 +12,17 @@ describe('APPOINTMENTS_ROUTES', () => {
 
     expect(calendarRoute).toBeDefined();
     expect(calendarRoute?.component).toBe(CalendarPageComponent);
+  });
+
+  it('provides the scheduling page route', () => {
+    const schedulingRoute = APPOINTMENTS_ROUTES.find(
+      (route) => route.path === 'new',
+    );
+
+    expect(schedulingRoute).toBeDefined();
+    expect(schedulingRoute?.component).toBe(
+      SchedulingPageComponent,
+    );
   });
 
   it('provides the forbidden page route', () => {
