@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
+  finalize,
   Observable,
   of,
   Subject,
@@ -95,19 +96,22 @@ describe('AvailabilityPageComponent', () => {
     ]);
   });
 
-  it('shows loading while dentist availability is pending', () => {
-    const pendingAvailability =
+  it('shows loading and cancels the previous dentist request', () => {
+    const firstResponse =
       new Subject<DentistAvailability>();
 
-    availabilityResponse$ =
-      pendingAvailability.asObservable();
+    let firstRequestCancelled = false;
+
+    availabilityResponse$ = firstResponse.pipe(
+      finalize(() => {
+        firstRequestCancelled = true;
+      }),
+    );
 
     selectDentist('dentist-123');
 
     const element =
       fixture.nativeElement as HTMLElement;
-
-    fixture.detectChanges();
 
     expect(
       element.querySelector(
@@ -115,16 +119,17 @@ describe('AvailabilityPageComponent', () => {
       ),
     ).not.toBeNull();
 
-    pendingAvailability.next(availability);
-    pendingAvailability.complete();
+    availabilityResponse$ =
+      new Subject<DentistAvailability>();
 
-    fixture.detectChanges();
+    selectDentist('dentist-456');
 
-    expect(
-      element.querySelector(
-        '[data-availability-loading]',
-      ),
-    ).toBeNull();
+    expect(firstRequestCancelled).toBe(true);
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+      'dentist-456',
+    ]);
   });
 
   it('shows empty state when dentist has no availability intervals', () => {
@@ -141,6 +146,7 @@ describe('AvailabilityPageComponent', () => {
       );
 
     expect(emptyState).not.toBeNull();
+
     expect(emptyState?.textContent).toContain(
       'No hay disponibilidad configurada para este odontólogo.',
     );
@@ -174,6 +180,7 @@ describe('AvailabilityPageComponent', () => {
       );
 
     expect(errorState).not.toBeNull();
+
     expect(errorState?.textContent).toContain(
       'Availability is temporarily unavailable.',
     );
