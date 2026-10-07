@@ -1,6 +1,4 @@
 import {
-  inject,
-  Injectable,
   InjectionToken,
 } from '@angular/core';
 
@@ -26,13 +24,13 @@ export interface CalendarSupportDataSource {
   readonly waitingList: readonly WaitingListItem[];
 }
 
-@Injectable({
-  providedIn: 'root',
-})
-export class CalendarSupportFixtureDataSource
-  implements CalendarSupportDataSource
-{
-  readonly treatmentLegend: readonly TreatmentLegendItem[] = [
+export const CALENDAR_SUPPORT_DATA_SOURCE =
+  new InjectionToken<CalendarSupportDataSource>(
+    'CALENDAR_SUPPORT_DATA_SOURCE',
+  );
+
+export const CALENDAR_SUPPORT_FIXTURE_DATA: CalendarSupportDataSource = {
+  treatmentLegend: [
     {
       key: 'cleaning',
       name: 'Limpieza',
@@ -45,9 +43,8 @@ export class CalendarSupportFixtureDataSource
       key: 'orthodontics',
       name: 'Ortodoncia',
     },
-  ];
-
-  readonly waitingList: readonly WaitingListItem[] = [
+  ],
+  waitingList: [
     {
       name: 'Ana García',
       treatment: 'Cirugía',
@@ -60,14 +57,5 @@ export class CalendarSupportFixtureDataSource
       treatmentKey: 'cleaning',
       preference: 'Cualquier horario disponible.',
     },
-  ];
-}
-
-export const CALENDAR_SUPPORT_DATA_SOURCE =
-  new InjectionToken<CalendarSupportDataSource>(
-    'CALENDAR_SUPPORT_DATA_SOURCE',
-    {
-      providedIn: 'root',
-      factory: () => inject(CalendarSupportFixtureDataSource),
-    },
-  );
+  ],
+};
