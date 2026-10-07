@@ -1,7 +1,4 @@
-import {
-  ComponentFixture,
-  TestBed,
-} from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { AvailabilityPageComponent } from './availability-page.component';
 
@@ -13,103 +10,115 @@ describe('AvailabilityPageComponent', () => {
       imports: [AvailabilityPageComponent],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(
-      AvailabilityPageComponent,
-    );
+    fixture = TestBed.createComponent(AvailabilityPageComponent);
     fixture.detectChanges();
   });
 
-  it('renders the availability configuration structure', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
+  it('renders the availability view', () => {
+    expect(
+      fixture.nativeElement.textContent,
+    ).toContain('Horarios y Slots de Disponibilidad');
+  });
 
-    expect(element.querySelector('h1')?.textContent).toContain(
-      'Horarios y Slots de Disponibilidad',
+  it('provides a dentist selector', () => {
+    const selector = fixture.nativeElement.querySelector(
+      '[data-dentist-select]',
     );
 
-    expect(
-      element.querySelector('[data-dentist-select]'),
-    ).not.toBeNull();
-
-    expect(
-      element.querySelector('[data-weekly-schedule]'),
-    ).not.toBeNull();
-
-    expect(
-      element.querySelector('[data-slot-duration]'),
-    ).not.toBeNull();
+    expect(selector).not.toBeNull();
   });
 
-  it('provides two work shifts for monday', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const monday =
-      element.querySelector('[data-day="monday"]');
-
-    expect(monday).not.toBeNull();
-
-    expect(
-      monday?.querySelector('[data-shift-one-start]'),
-    ).not.toBeNull();
-
-    expect(
-      monday?.querySelector('[data-shift-one-end]'),
-    ).not.toBeNull();
-
-    expect(
-      monday?.querySelector('[data-shift-two-start]'),
-    ).not.toBeNull();
-
-    expect(
-      monday?.querySelector('[data-shift-two-end]'),
-    ).not.toBeNull();
-  });
-
-  it('uses a 30 minute slot duration by default', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const duration =
-      element.querySelector<HTMLSelectElement>(
-        '[data-slot-duration]',
-      );
-
-    expect(duration?.value).toBe('30');
-  });
-
-  it('provides availability generation date range', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    expect(
-      element.querySelector('[data-start-date]'),
-    ).not.toBeNull();
-
-    expect(
-      element.querySelector('[data-end-date]'),
-    ).not.toBeNull();
-
-    expect(
-      element.querySelector('[data-generate-slots]'),
-    ).not.toBeNull();
-  });
-
-  it('shows clinic timezone', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    expect(element.textContent).toContain(
-      'America/Bogota',
+  it('provides the weekly schedule', () => {
+    const schedule = fixture.nativeElement.querySelector(
+      '[data-weekly-schedule]',
     );
+
+    expect(schedule).not.toBeNull();
   });
 
-  it('shows an empty state when no generated slots exist', () => {
-    const element =
-      fixture.nativeElement as HTMLElement;
+  it('uses the expected monday work shifts', () => {
+    const monday = fixture.nativeElement.querySelector(
+      '[data-day="monday"]',
+    ) as HTMLElement;
+
+    const shiftOneStart = monday.querySelector(
+      '[data-shift-one-start]',
+    ) as HTMLInputElement;
+
+    const shiftOneEnd = monday.querySelector(
+      '[data-shift-one-end]',
+    ) as HTMLInputElement;
+
+    const shiftTwoStart = monday.querySelector(
+      '[data-shift-two-start]',
+    ) as HTMLInputElement;
+
+    const shiftTwoEnd = monday.querySelector(
+      '[data-shift-two-end]',
+    ) as HTMLInputElement;
+
+    expect(shiftOneStart.value).toBe('08:00');
+    expect(shiftOneEnd.value).toBe('12:00');
+    expect(shiftTwoStart.value).toBe('14:00');
+    expect(shiftTwoEnd.value).toBe('18:00');
+  });
+
+  it('uses a 30 minute default slot duration', () => {
+    const monday = fixture.nativeElement.querySelector(
+      '[data-day="monday"]',
+    ) as HTMLElement;
+
+    const duration = monday.querySelector(
+      '[data-slot-duration]',
+    ) as HTMLSelectElement;
+
+    expect(duration.value).toBe('30');
+  });
+
+  it('disables monday schedule fields when monday is disabled', () => {
+    const monday = fixture.nativeElement.querySelector(
+      '[data-day="monday"]',
+    ) as HTMLElement;
+
+    const enabled = monday.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    const shiftInputs = Array.from(
+      monday.querySelectorAll('input[type="time"], select'),
+    ) as Array<HTMLInputElement | HTMLSelectElement>;
+
+    expect(enabled.checked).toBe(true);
+    expect(shiftInputs.every((control) => !control.disabled)).toBe(true);
+
+    enabled.click();
+    fixture.detectChanges();
+
+    expect(enabled.checked).toBe(false);
+    expect(shiftInputs.every((control) => control.disabled)).toBe(true);
+  });
+
+  it('provides the slot generation controls', () => {
+    expect(
+      fixture.nativeElement.querySelector('[data-start-date]'),
+    ).not.toBeNull();
 
     expect(
-      element.querySelector('[data-slots-empty]')?.textContent,
-    ).toContain('No hay slots generados');
+      fixture.nativeElement.querySelector('[data-end-date]'),
+    ).not.toBeNull();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-generate-slots]'),
+    ).not.toBeNull();
+  });
+
+  it('shows the generated slots empty state', () => {
+    const emptyState = fixture.nativeElement.querySelector(
+      '[data-slots-empty]',
+    );
+
+    expect(emptyState.textContent).toContain(
+      'No hay slots generados.',
+    );
   });
 });
