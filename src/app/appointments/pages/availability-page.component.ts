@@ -4,6 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { finalize } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
@@ -42,6 +43,16 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
           <option value="">Seleccione un odontólogo</option>
         </select>
       </section>
+
+      @if (availabilityLoading()) {
+        <div
+          data-availability-loading
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <p>Cargando disponibilidad...</p>
+        </div>
+      }
 
       <div class="availability-layout">
         <section class="schedule-panel" data-weekly-schedule>
@@ -196,6 +207,8 @@ export class AvailabilityPageComponent {
     DEFAULT_SLOT_DURATION_MINUTES;
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
+  protected readonly availabilityLoading = signal(false);
+
   private readonly enabledDays = signal<Record<string, boolean>>(
     Object.fromEntries(
       DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
@@ -210,8 +223,15 @@ export class AvailabilityPageComponent {
       return;
     }
 
+    this.availabilityLoading.set(true);
+
     this.api
       .getDentistAvailability(dentistId)
+      .pipe(
+        finalize(() => {
+          this.availabilityLoading.set(false);
+        }),
+      )
       .subscribe();
   }
 
