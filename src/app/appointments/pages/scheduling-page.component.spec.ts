@@ -48,6 +48,32 @@ describe('SchedulingPageComponent', () => {
     );
   });
 
+  it('allows an available slot to be selected', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const slots =
+      element.querySelectorAll<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(slots.length).toBeGreaterThan(0);
+
+    const selectedSlot = slots[0];
+    selectedSlot.click();
+    fixture.detectChanges();
+
+    expect(
+      selectedSlot.getAttribute('aria-pressed'),
+    ).toBe('true');
+
+    expect(
+      element.querySelector(
+        '[data-selected-slot]',
+      )?.textContent,
+    ).toContain(selectedSlot.textContent?.trim());
+  });
+
   it('provides the appointment confirmation action', () => {
     const element =
       fixture.nativeElement as HTMLElement;
