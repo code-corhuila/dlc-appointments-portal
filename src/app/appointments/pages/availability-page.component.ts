@@ -12,6 +12,7 @@ import {
   DEFAULT_WEEKLY_AVAILABILITY,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
+import { ApiError } from '../model/api-error';
 
 @Component({
   selector: 'app-availability-page',
@@ -51,6 +52,23 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
           aria-live="polite"
         >
           <p>Cargando disponibilidad...</p>
+        </div>
+      }
+
+      @if (availabilityError(); as error) {
+        <div
+          data-availability-error
+          role="alert"
+        >
+          <p>{{ error.message }}</p>
+
+          <button
+            type="button"
+            data-availability-retry
+            (click)="retryAvailability()"
+          >
+            Reintentar
+          </button>
         </div>
       }
 
@@ -208,6 +226,10 @@ export class AvailabilityPageComponent {
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
   protected readonly availabilityLoading = signal(false);
+  protected readonly availabilityError =
+    signal<ApiError | null>(null);
+
+  private selectedDentistId: string | null = null;
 
   private readonly enabledDays = signal<Record<string, boolean>>(
     Object.fromEntries(
@@ -220,9 +242,13 @@ export class AvailabilityPageComponent {
 
   protected loadAvailability(dentistId: string): void {
     if (!dentistId) {
+      this.selectedDentistId = null;
+      this.availabilityError.set(null);
       return;
     }
 
+    this.selectedDentistId = dentistId;
+    this.availabilityError.set(null);
     this.availabilityLoading.set(true);
 
     this.api
@@ -232,7 +258,21 @@ export class AvailabilityPageComponent {
           this.availabilityLoading.set(false);
         }),
       )
-      .subscribe();
+      .subscribe({
+        error: (error: ApiError) => {
+          this.availabilityError.set(error);
+        },
+      });
+  }
+
+  protected retryAvailability(): void {
+    if (!this.selectedDentistId) {
+      return;
+    }
+
+    this.loadAvailability(
+      this.selectedDentistId,
+    );
   }
 
   protected isDayEnabled(day: string): boolean {
