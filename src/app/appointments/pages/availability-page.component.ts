@@ -1,14 +1,20 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { finalize, Subscription } from 'rxjs';
 
+import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
+import { ApiError } from '../model/api-error';
 
 @Component({
   selector: 'app-availability-page',
@@ -32,10 +38,52 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
           </label>
         </div>
 
-        <select id="dentist" data-dentist-select>
+        <select
+          id="dentist"
+          data-dentist-select
+          (change)="loadAvailability($any($event.target).value)"
+        >
           <option value="">Seleccione un odontólogo</option>
         </select>
       </section>
+
+      @if (availabilityLoading()) {
+        <div
+          data-availability-loading
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <p>Cargando disponibilidad...</p>
+        </div>
+      }
+
+      @if (availabilityEmpty()) {
+        <div
+          data-availability-empty
+          aria-live="polite"
+        >
+          <p>
+            No hay disponibilidad configurada para este odontólogo.
+          </p>
+        </div>
+      }
+
+      @if (availabilityError(); as error) {
+        <div
+          data-availability-error
+          role="alert"
+        >
+          <p>{{ error.message }}</p>
+
+          <button
+            type="button"
+            data-availability-retry
+            (click)="retryAvailability()"
+          >
+            Reintentar
+          </button>
+        </div>
+      }
 
       <div class="availability-layout">
         <section class="schedule-panel" data-weekly-schedule>
@@ -183,9 +231,22 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
   `,
 })
 export class AvailabilityPageComponent {
+  private readonly api = inject(AppointmentsApiService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private availabilityRequest?: Subscription;
+
   protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
-  protected readonly slotDurationMinutes = DEFAULT_SLOT_DURATION_MINUTES;
+  protected readonly slotDurationMinutes =
+    DEFAULT_SLOT_DURATION_MINUTES;
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
+
+  protected readonly availabilityLoading = signal(false);
+  protected readonly availabilityEmpty = signal(false);
+  protected readonly availabilityError =
+    signal<ApiError | null>(null);
+
+  private selectedDentistId: string | null = null;
 
   private readonly enabledDays = signal<Record<string, boolean>>(
     Object.fromEntries(
@@ -196,11 +257,61 @@ export class AvailabilityPageComponent {
     ),
   );
 
+  protected loadAvailability(dentistId: string): void {
+    this.availabilityRequest?.unsubscribe();
+
+    if (!dentistId) {
+      this.selectedDentistId = null;
+      this.availabilityLoading.set(false);
+      this.availabilityError.set(null);
+      this.availabilityEmpty.set(false);
+      return;
+    }
+
+    this.selectedDentistId = dentistId;
+    this.availabilityError.set(null);
+    this.availabilityEmpty.set(false);
+    this.availabilityLoading.set(true);
+
+    this.availabilityRequest = this.api
+      .getDentistAvailability(dentistId)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.availabilityLoading.set(false);
+        }),
+      )
+      .subscribe({
+        next: (availability) => {
+          this.availabilityEmpty.set(
+            availability.intervals.length === 0,
+          );
+        },
+        error: (error: ApiError) => {
+          this.availabilityEmpty.set(false);
+          this.availabilityError.set(error);
+        },
+      });
+  }
+
+  protected retryAvailability(): void {
+    if (!this.selectedDentistId) {
+      return;
+    }
+
+    this.loadAvailability(
+      this.selectedDentistId,
+    );
+  }
+
   protected isDayEnabled(day: string): boolean {
     return this.enabledDays()[day] ?? false;
   }
 
-  protected setDayEnabled(day: string, enabled: boolean): void {
+  protected setDayEnabled(
+    day: string,
+    enabled: boolean,
+  ): void {
     this.enabledDays.update((current) => ({
       ...current,
       [day]: enabled,
