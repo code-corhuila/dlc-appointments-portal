@@ -89,10 +89,11 @@ describe('CalendarPageComponent', () => {
     ]);
 
     expect(element.textContent).toContain(
-      'Estados de cita',
+      'Tratamientos',
     );
+
     expect(element.textContent).toContain(
-      'Citas del día',
+      'Lista de Espera',
     );
   });
 
