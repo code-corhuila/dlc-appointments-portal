@@ -1,10 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   signal,
 } from '@angular/core';
-import { finalize } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  finalize,
+  Subscription,
+} from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
@@ -84,7 +89,10 @@ import { ApiError } from '../model/api-error';
       }
 
       <div class="availability-layout">
-        <section class="schedule-panel" data-weekly-schedule>
+        <section
+          class="schedule-panel"
+          data-weekly-schedule
+        >
           <header class="panel-header">
             <h2>Configurar Horario Semanal</h2>
             <p>
@@ -94,13 +102,19 @@ import { ApiError } from '../model/api-error';
           </header>
 
           @for (day of weekDays; track day.key) {
-            <article class="day-card" [attr.data-day]="day.key">
+            <article
+              class="day-card"
+              [attr.data-day]="day.key"
+            >
               <div class="day-heading">
                 <input
                   type="checkbox"
                   [id]="day.key + '-enabled'"
                   [checked]="isDayEnabled(day.key)"
-                  (change)="setDayEnabled(day.key, $any($event.target).checked)"
+                  (change)="setDayEnabled(
+                    day.key,
+                    $any($event.target).checked
+                  )"
                 />
 
                 <label [for]="day.key + '-enabled'">
@@ -109,7 +123,9 @@ import { ApiError } from '../model/api-error';
               </div>
 
               <div class="shift-row">
-                <strong class="shift-badge">Turno 1:</strong>
+                <strong class="shift-badge">
+                  Turno 1:
+                </strong>
 
                 <label [for]="day.key + '-shift-one-start'">
                   Desde:
@@ -150,7 +166,9 @@ import { ApiError } from '../model/api-error';
               </div>
 
               <div class="shift-row">
-                <strong class="shift-badge">Turno 2:</strong>
+                <strong class="shift-badge">
+                  Turno 2:
+                </strong>
 
                 <label [for]="day.key + '-shift-two-start'">
                   Desde:
@@ -205,69 +223,114 @@ import { ApiError } from '../model/api-error';
             </p>
           </header>
 
-          <label for="start-date">Fecha de Inicio *</label>
-          <input id="start-date" type="date" data-start-date />
+          <label for="start-date">
+            Fecha de Inicio *
+          </label>
 
-          <label for="end-date">Fecha de Fin *</label>
-          <input id="end-date" type="date" data-end-date />
+          <input
+            id="start-date"
+            type="date"
+            data-start-date
+          />
 
-          <button type="button" data-generate-slots>
+          <label for="end-date">
+            Fecha de Fin *
+          </label>
+
+          <input
+            id="end-date"
+            type="date"
+            data-end-date
+          />
+
+          <button
+            type="button"
+            data-generate-slots
+          >
             Generar Slots de Disponibilidad
           </button>
 
           <p>
-            Zona horaria: <strong>{{ clinicTimeZone }}</strong>
+            Zona horaria:
+            <strong>{{ clinicTimeZone }}</strong>
           </p>
         </aside>
       </div>
 
       <section class="generated-slots">
         <h2>Slots generados</h2>
-        <p data-slots-empty>No hay slots generados.</p>
+
+        <p data-slots-empty>
+          No hay slots generados.
+        </p>
       </section>
     </main>
   `,
 })
 export class AvailabilityPageComponent {
-  private readonly api = inject(AppointmentsApiService);
+  private readonly api =
+    inject(AppointmentsApiService);
 
-  protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
+  private readonly destroyRef =
+    inject(DestroyRef);
+
+  private availabilityRequest?: Subscription;
+
+  protected readonly weekDays =
+    DEFAULT_WEEKLY_AVAILABILITY;
+
   protected readonly slotDurationMinutes =
     DEFAULT_SLOT_DURATION_MINUTES;
-  protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
-  protected readonly availabilityLoading = signal(false);
-  protected readonly availabilityEmpty = signal(false);
+  protected readonly clinicTimeZone =
+    CLINIC_TIME_ZONE;
+
+  protected readonly availabilityLoading =
+    signal(false);
+
+  protected readonly availabilityEmpty =
+    signal(false);
+
   protected readonly availabilityError =
     signal<ApiError | null>(null);
 
-  private selectedDentistId: string | null = null;
+  private selectedDentistId: string | null =
+    null;
 
-  private readonly enabledDays = signal<Record<string, boolean>>(
-    Object.fromEntries(
-      DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
-        day.key,
-        day.enabled,
-      ]),
-    ),
-  );
+  private readonly enabledDays =
+    signal<Record<string, boolean>>(
+      Object.fromEntries(
+        DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
+          day.key,
+          day.enabled,
+        ]),
+      ),
+    );
 
-  protected loadAvailability(dentistId: string): void {
+  protected loadAvailability(
+    dentistId: string,
+  ): void {
+    this.availabilityRequest?.unsubscribe();
+    this.availabilityRequest = undefined;
+
     if (!dentistId) {
       this.selectedDentistId = null;
+      this.availabilityLoading.set(false);
       this.availabilityError.set(null);
       this.availabilityEmpty.set(false);
       return;
     }
 
     this.selectedDentistId = dentistId;
+
     this.availabilityError.set(null);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
 
-    this.api
+    this.availabilityRequest = this.api
       .getDentistAvailability(dentistId)
       .pipe(
+        takeUntilDestroyed(this.destroyRef),
         finalize(() => {
           this.availabilityLoading.set(false);
         }),
@@ -295,7 +358,9 @@ export class AvailabilityPageComponent {
     );
   }
 
-  protected isDayEnabled(day: string): boolean {
+  protected isDayEnabled(
+    day: string,
+  ): boolean {
     return this.enabledDays()[day] ?? false;
   }
 
