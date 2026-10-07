@@ -8,7 +8,6 @@ import {
   selector: 'app-availability-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './availability-page.component.css',
   template: `
     <main class="availability-page">
       <header class="page-header">
@@ -21,7 +20,6 @@ import {
 
       <section class="dentist-card">
         <div class="dentist-label">
-          <span class="dentist-icon" aria-hidden="true">♙</span>
           <label for="dentist">
             Seleccionar Odontólogo / Especialista:
           </label>
@@ -49,12 +47,7 @@ import {
                   type="checkbox"
                   [id]="day.key + '-enabled'"
                   [checked]="isDayEnabled(day.key)"
-                  (change)="
-                    setDayEnabled(
-                      day.key,
-                      $any($event.target).checked
-                    )
-                  "
+                  (change)="setDayEnabled(day.key, $any($event.target).checked)"
                 />
 
                 <label [for]="day.key + '-enabled'">
@@ -65,9 +58,7 @@ import {
               <div class="shift-row">
                 <strong class="shift-badge">Turno 1:</strong>
 
-                <label [for]="day.key + '-shift-one-start'">
-                  Desde:
-                </label>
+                <label [for]="day.key + '-shift-one-start'">Desde:</label>
 
                 <input
                   [id]="day.key + '-shift-one-start'"
@@ -77,9 +68,7 @@ import {
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-one-end'">
-                  Hasta:
-                </label>
+                <label [for]="day.key + '-shift-one-end'">Hasta:</label>
 
                 <input
                   [id]="day.key + '-shift-one-end'"
@@ -106,9 +95,7 @@ import {
               <div class="shift-row">
                 <strong class="shift-badge">Turno 2:</strong>
 
-                <label [for]="day.key + '-shift-two-start'">
-                  Desde:
-                </label>
+                <label [for]="day.key + '-shift-two-start'">Desde:</label>
 
                 <input
                   [id]="day.key + '-shift-two-start'"
@@ -118,9 +105,7 @@ import {
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-two-end'">
-                  Hasta:
-                </label>
+                <label [for]="day.key + '-shift-two-end'">Hasta:</label>
 
                 <input
                   [id]="day.key + '-shift-two-end'"
@@ -167,7 +152,7 @@ import {
             Generar Slots de Disponibilidad
           </button>
 
-          <p class="timezone">
+          <p>
             Zona horaria: <strong>America/Bogota</strong>
           </p>
         </aside>
