@@ -4,6 +4,12 @@ import {
   signal,
 } from '@angular/core';
 
+import {
+  DEFAULT_SLOT_DURATION_MINUTES,
+  DEFAULT_WEEKLY_AVAILABILITY,
+} from '../domain/availability-schedule';
+import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
+
 @Component({
   selector: 'app-availability-page',
   standalone: true,
@@ -58,22 +64,26 @@ import {
               <div class="shift-row">
                 <strong class="shift-badge">Turno 1:</strong>
 
-                <label [for]="day.key + '-shift-one-start'">Desde:</label>
+                <label [for]="day.key + '-shift-one-start'">
+                  Desde:
+                </label>
 
                 <input
                   [id]="day.key + '-shift-one-start'"
                   type="time"
-                  value="08:00"
+                  [value]="day.shiftOne.start"
                   data-shift-one-start
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-one-end'">Hasta:</label>
+                <label [for]="day.key + '-shift-one-end'">
+                  Hasta:
+                </label>
 
                 <input
                   [id]="day.key + '-shift-one-end'"
                   type="time"
-                  value="12:00"
+                  [value]="day.shiftOne.end"
                   data-shift-one-end
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -83,7 +93,7 @@ import {
                 <input
                   type="checkbox"
                   [id]="day.key + '-second-shift'"
-                  checked
+                  [checked]="day.shiftTwo.enabled"
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
@@ -95,22 +105,26 @@ import {
               <div class="shift-row">
                 <strong class="shift-badge">Turno 2:</strong>
 
-                <label [for]="day.key + '-shift-two-start'">Desde:</label>
+                <label [for]="day.key + '-shift-two-start'">
+                  Desde:
+                </label>
 
                 <input
                   [id]="day.key + '-shift-two-start'"
                   type="time"
-                  value="14:00"
+                  [value]="day.shiftTwo.start"
                   data-shift-two-start
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
-                <label [for]="day.key + '-shift-two-end'">Hasta:</label>
+                <label [for]="day.key + '-shift-two-end'">
+                  Hasta:
+                </label>
 
                 <input
                   [id]="day.key + '-shift-two-end'"
                   type="time"
-                  value="18:00"
+                  [value]="day.shiftTwo.end"
                   data-shift-two-end
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -126,7 +140,9 @@ import {
                   data-slot-duration
                   [disabled]="!isDayEnabled(day.key)"
                 >
-                  <option value="30">30 Min</option>
+                  <option [value]="slotDurationMinutes">
+                    {{ slotDurationMinutes }} Min
+                  </option>
                 </select>
               </div>
             </article>
@@ -153,7 +169,7 @@ import {
           </button>
 
           <p>
-            Zona horaria: <strong>America/Bogota</strong>
+            Zona horaria: <strong>{{ clinicTimeZone }}</strong>
           </p>
         </aside>
       </div>
@@ -166,21 +182,18 @@ import {
   `,
 })
 export class AvailabilityPageComponent {
-  protected readonly weekDays = [
-    { key: 'monday', label: 'Lunes' },
-    { key: 'tuesday', label: 'Martes' },
-    { key: 'wednesday', label: 'Miércoles' },
-    { key: 'thursday', label: 'Jueves' },
-    { key: 'friday', label: 'Viernes' },
-  ] as const;
+  protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
+  protected readonly slotDurationMinutes = DEFAULT_SLOT_DURATION_MINUTES;
+  protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
-  private readonly enabledDays = signal<Record<string, boolean>>({
-    monday: true,
-    tuesday: true,
-    wednesday: true,
-    thursday: true,
-    friday: true,
-  });
+  private readonly enabledDays = signal<Record<string, boolean>>(
+    Object.fromEntries(
+      DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
+        day.key,
+        day.enabled,
+      ]),
+    ),
+  );
 
   protected isDayEnabled(day: string): boolean {
     return this.enabledDays()[day] ?? false;
