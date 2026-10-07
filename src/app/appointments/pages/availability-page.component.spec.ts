@@ -3,9 +3,11 @@ import {
   Observable,
   of,
   Subject,
+  throwError,
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { ApiError } from '../model/api-error';
 import { DentistAvailability } from '../model/availability';
 import { AvailabilityPageComponent } from './availability-page.component';
 
@@ -123,6 +125,49 @@ describe('AvailabilityPageComponent', () => {
         '[data-availability-loading]',
       ),
     ).toBeNull();
+  });
+
+  it('shows an error and retries the selected dentist availability', () => {
+    const apiError: ApiError = {
+      error: 'SERVICE_UNAVAILABLE',
+      message: 'Availability is temporarily unavailable.',
+      traceId: 'trace-availability-001',
+    };
+
+    availabilityResponse$ =
+      throwError(() => apiError);
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    fixture.detectChanges();
+
+    const errorState =
+      element.querySelector(
+        '[data-availability-error]',
+      );
+
+    const retryButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-availability-retry]',
+      );
+
+    expect(errorState).not.toBeNull();
+    expect(errorState?.textContent).toContain(
+      'Availability is temporarily unavailable.',
+    );
+
+    expect(retryButton).not.toBeNull();
+
+    retryButton?.click();
+    fixture.detectChanges();
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+      'dentist-123',
+    ]);
   });
 
   it('disables monday schedule fields when monday is disabled', () => {
