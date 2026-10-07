@@ -8,6 +8,7 @@ import {
   selector: 'app-scheduling-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './scheduling-page.component.css',
   template: `
     <main class="scheduling-page">
       <header>
