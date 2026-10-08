@@ -141,21 +141,31 @@ export class SchedulingPageComponent {
         )
         .subscribe({
           next: (availability) => {
-            this.availableSlots.set(
-              deriveAvailabilitySlotsForDate(
-                availability.intervals,
-                clinicDate,
-                availability.blockedIntervals,
-              ),
-            );
+            try {
+              const slots =
+                deriveAvailabilitySlotsForDate(
+                  availability.intervals,
+                  clinicDate,
+                  availability.blockedIntervals,
+                );
 
-            this.hasLoadedAvailability.set(
-              true,
-            );
-
-            this.hasAvailabilityError.set(
-              false,
-            );
+              this.availableSlots.set(slots);
+              this.hasLoadedAvailability.set(
+                true,
+              );
+              this.hasAvailabilityError.set(
+                false,
+              );
+            } catch {
+              this.availableSlots.set([]);
+              this.selectedSlot.set(null);
+              this.hasLoadedAvailability.set(
+                false,
+              );
+              this.hasAvailabilityError.set(
+                true,
+              );
+            }
           },
           error: () => {
             this.availableSlots.set([]);
