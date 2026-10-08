@@ -832,6 +832,103 @@ describe('SchedulingPageComponent', () => {
     ).toContain('Confirmar Cita');
   });
 
+  it('shows validation feedback when appointment creation is rejected', () => {
+    appointmentCreationResponse = throwError(
+      () =>
+        new HttpErrorResponse({
+          status: 400,
+          error: {
+            error: 'VALIDATION_ERROR',
+            message:
+              'Appointment data is invalid',
+            traceId:
+              'trace-appointment-validation',
+          },
+        }),
+    );
+
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    const feedback =
+      element.querySelector(
+        '[data-appointment-error]',
+      );
+
+    expect(feedback).not.toBeNull();
+
+    expect(
+      feedback?.textContent,
+    ).toContain(
+      'Los datos de la cita no son válidos. Revise la información e intente nuevamente.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-appointment-success]',
+      ),
+    ).toBeNull();
+
+    expect(confirmButton?.disabled).toBe(false);
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
