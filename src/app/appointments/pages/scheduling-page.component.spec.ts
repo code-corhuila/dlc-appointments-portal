@@ -554,6 +554,102 @@ describe('SchedulingPageComponent', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('prevents duplicate appointment submissions while creation is pending', () => {
+    const pendingCreation =
+      new Subject<Appointment>();
+
+    appointmentCreationResponse =
+      pendingCreation;
+
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    const reason =
+      element.querySelector<HTMLTextAreaElement>(
+        '#reason',
+      );
+
+    expect(reason).not.toBeNull();
+
+    if (reason) {
+      reason.value = 'Control general';
+
+      reason.dispatchEvent(
+        new Event('input'),
+      );
+    }
+
+    fixture.detectChanges();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    expect(confirmButton?.disabled).toBe(true);
+
+    expect(
+      confirmButton?.textContent,
+    ).toContain('Creando cita');
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
