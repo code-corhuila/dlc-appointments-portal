@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { Observable, Subject, of } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { DentistAvailability } from '../model/availability';
@@ -8,6 +8,7 @@ import { SchedulingPageComponent } from './scheduling-page.component';
 describe('SchedulingPageComponent', () => {
   let fixture: ComponentFixture<SchedulingPageComponent>;
   let requestedDentistIds: string[];
+  let availabilityResponse: Observable<DentistAvailability>;
 
   const availability: DentistAvailability = {
     id: 'availability-123',
@@ -24,6 +25,7 @@ describe('SchedulingPageComponent', () => {
 
   beforeEach(async () => {
     requestedDentistIds = [];
+    availabilityResponse = of(availability);
 
     await TestBed.configureTestingModule({
       imports: [SchedulingPageComponent],
@@ -33,7 +35,7 @@ describe('SchedulingPageComponent', () => {
           useValue: {
             getDentistAvailability: (dentistId: string) => {
               requestedDentistIds.push(dentistId);
-              return of(availability);
+              return availabilityResponse;
             },
           },
         },
@@ -82,6 +84,22 @@ describe('SchedulingPageComponent', () => {
     expect(
       element.querySelectorAll('[data-available-slot]').length,
     ).toBe(0);
+  });
+
+  it('shows loading feedback while dentist availability is pending', () => {
+    const pendingAvailability = new Subject<DentistAvailability>();
+    availabilityResponse = pendingAvailability;
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(requestedDentistIds).toEqual(['dentist-123']);
+
+    expect(
+      element.querySelector('[data-availability-loading]'),
+    ).not.toBeNull();
   });
 
   it('loads dentist availability and renders slots for the selected date', () => {
