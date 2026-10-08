@@ -286,7 +286,8 @@
 
         <textarea
           id="reason"
-          placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."></textarea>
+          placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."
+          (input)="setAppointmentReason($any($event.target).value)"></textarea>
       </section>
     </div>
 
@@ -333,9 +334,16 @@
 
       <button
         type="button"
-        data-confirm-appointment>
-        Confirmar Cita
-        <span aria-hidden="true">✓</span>
+        data-confirm-appointment
+        [disabled]="isAppointmentCreating()"
+        [attr.aria-busy]="isAppointmentCreating()"
+        (click)="createAppointment()">
+        @if (isAppointmentCreating()) {
+          Creando cita...
+        } @else {
+          Confirmar Cita
+          <span aria-hidden="true">✓</span>
+        }
       </button>
     </aside>
   </div>

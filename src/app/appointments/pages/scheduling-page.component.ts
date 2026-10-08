@@ -18,6 +18,8 @@ import {
   deriveAvailabilitySlotsForDate,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
+import { IdempotencyKeyManager } from '../domain/idempotency-key';
+import { CreateAppointmentRequest } from '../model/appointment';
 import { PatientView } from '../model/patient';
 
 interface SchedulingDateOption {
@@ -46,6 +48,9 @@ export class SchedulingPageComponent {
   private readonly destroyRef =
     inject(DestroyRef);
 
+  private readonly idempotencyKeys =
+    new IdempotencyKeyManager();
+
   private availabilityRequest?: Subscription;
   private patientSearchRequest?: Subscription;
 
@@ -56,6 +61,8 @@ export class SchedulingPageComponent {
   private lastPatientSearch:
     | string
     | null = null;
+
+  private appointmentReason = '';
 
   protected readonly clinicTimeZone =
     CLINIC_TIME_ZONE;
@@ -94,6 +101,9 @@ export class SchedulingPageComponent {
     signal(false);
 
   readonly hasAvailabilityError =
+    signal(false);
+
+  readonly isAppointmentCreating =
     signal(false);
 
   protected searchPatients(
@@ -207,6 +217,67 @@ export class SchedulingPageComponent {
     this.selectedSlot.set(slot);
   }
 
+  protected setAppointmentReason(
+    reason: string,
+  ): void {
+    this.appointmentReason = reason;
+  }
+
+  protected createAppointment(): void {
+    if (this.isAppointmentCreating()) {
+      return;
+    }
+
+    const patient =
+      this.selectedPatient();
+
+    const slot =
+      this.selectedSlot();
+
+    if (
+      !patient ||
+      !this.selectedDentistId ||
+      !slot
+    ) {
+      return;
+    }
+
+    const request: CreateAppointmentRequest = {
+      patientId: patient.id,
+      dentistId: this.selectedDentistId,
+      startAt: slot.startAt,
+      endAt: slot.endAt,
+      reason: this.appointmentReason.trim(),
+    };
+
+    const idempotencyKey =
+      this.idempotencyKeys.forIntent(
+        request,
+      );
+
+    this.isAppointmentCreating.set(true);
+
+    this.api
+      .createAppointment(
+        request,
+        idempotencyKey,
+      )
+      .pipe(
+        takeUntilDestroyed(
+          this.destroyRef,
+        ),
+        finalize(() => {
+          this.isAppointmentCreating.set(
+            false,
+          );
+        }),
+      )
+      .subscribe({
+        next: () => undefined,
+        error: () => undefined,
+      });
+  }
+
   protected retryAvailability(): void {
     this.refreshAvailabilitySlots();
   }
@@ -261,18 +332,22 @@ export class SchedulingPageComponent {
                 );
 
               this.availableSlots.set(slots);
+
               this.hasLoadedAvailability.set(
                 true,
               );
+
               this.hasAvailabilityError.set(
                 false,
               );
             } catch {
               this.availableSlots.set([]);
               this.selectedSlot.set(null);
+
               this.hasLoadedAvailability.set(
                 false,
               );
+
               this.hasAvailabilityError.set(
                 true,
               );
