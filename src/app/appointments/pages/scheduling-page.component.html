@@ -34,6 +34,14 @@
             (input)="searchPatients($any($event.target).value)" />
         </div>
 
+        @if (isPatientSearchLoading()) {
+          <p
+            class="slot-placeholder"
+            data-patient-loading>
+            Buscando pacientes...
+          </p>
+        }
+
         @if (patientResults().length > 0) {
           <div
             class="patient-results"
