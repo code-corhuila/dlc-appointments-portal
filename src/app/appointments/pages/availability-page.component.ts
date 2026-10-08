@@ -11,15 +11,15 @@ import { finalize, Subscription } from 'rxjs';
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
   AvailabilityDayDefaults,
+  AvailabilityDayKey,
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
+  mapAvailabilityIntervalsToWeek,
+  WeeklyAvailabilitySchedule,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { ApiError } from '../model/api-error';
-import {
-  AvailabilityInterval,
-  DentistAvailability,
-} from '../model/availability';
+import { DentistAvailability } from '../model/availability';
 
 @Component({
   selector: 'app-availability-page',
@@ -251,8 +251,8 @@ export class AvailabilityPageComponent {
   protected readonly availabilityError =
     signal<ApiError | null>(null);
 
-  private readonly loadedIntervals =
-    signal<Record<string, readonly AvailabilityInterval[]>>({});
+  private readonly loadedSchedule =
+    signal<WeeklyAvailabilitySchedule>({});
 
   private readonly hasLoadedAvailability = signal(false);
 
@@ -276,7 +276,7 @@ export class AvailabilityPageComponent {
       this.availabilityError.set(null);
       this.availabilityEmpty.set(false);
       this.hasLoadedAvailability.set(false);
-      this.loadedIntervals.set({});
+      this.loadedSchedule.set({});
       this.resetEnabledDays();
       return;
     }
@@ -286,7 +286,7 @@ export class AvailabilityPageComponent {
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
     this.hasLoadedAvailability.set(false);
-    this.loadedIntervals.set({});
+    this.loadedSchedule.set({});
 
     this.availabilityRequest = this.api
       .getDentistAvailability(dentistId)
@@ -325,13 +325,13 @@ export class AvailabilityPageComponent {
     day: AvailabilityDayDefaults,
     index: number,
   ): string {
-    const interval =
-      this.loadedIntervals()[day.key]?.[index];
+    const shift =
+      this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.[index];
 
     if (this.hasLoadedAvailability()) {
-      return interval
-        ? this.extractTime(interval.startAt)
-        : '';
+      return shift?.start ?? '';
     }
 
     return index === 0
@@ -343,13 +343,13 @@ export class AvailabilityPageComponent {
     day: AvailabilityDayDefaults,
     index: number,
   ): string {
-    const interval =
-      this.loadedIntervals()[day.key]?.[index];
+    const shift =
+      this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.[index];
 
     if (this.hasLoadedAvailability()) {
-      return interval
-        ? this.extractTime(interval.endAt)
-        : '';
+      return shift?.end ?? '';
     }
 
     return index === 0
@@ -365,7 +365,9 @@ export class AvailabilityPageComponent {
     }
 
     return (
-      (this.loadedIntervals()[day.key]?.length ?? 0) > 1
+      (this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.length ?? 0) > 1
     );
   }
 
@@ -386,71 +388,26 @@ export class AvailabilityPageComponent {
   private applyAvailability(
     availability: DentistAvailability,
   ): void {
-    const intervalsByDay =
-      this.groupIntervalsByDay(
+    const schedule =
+      mapAvailabilityIntervalsToWeek(
         availability.intervals,
       );
 
-    this.loadedIntervals.set(intervalsByDay);
+    this.loadedSchedule.set(schedule);
     this.hasLoadedAvailability.set(true);
 
     this.enabledDays.set(
       Object.fromEntries(
         DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
           day.key,
-          (intervalsByDay[day.key]?.length ?? 0) > 0,
+          (
+            schedule[
+              day.key as AvailabilityDayKey
+            ]?.length ?? 0
+          ) > 0,
         ]),
       ),
     );
-  }
-
-  private groupIntervalsByDay(
-    intervals: readonly AvailabilityInterval[],
-  ): Record<string, readonly AvailabilityInterval[]> {
-    const grouped: Record<
-      string,
-      AvailabilityInterval[]
-    > = {};
-
-    for (const interval of intervals) {
-      const dayKey =
-        this.dayKeyFromIsoDate(interval.startAt);
-
-      if (!dayKey) {
-        continue;
-      }
-
-      grouped[dayKey] ??= [];
-      grouped[dayKey].push(interval);
-    }
-
-    return grouped;
-  }
-
-  private dayKeyFromIsoDate(
-    value: string,
-  ): string | null {
-    const datePart = value.slice(0, 10);
-    const [year, month, day] =
-      datePart.split('-').map(Number);
-
-    const weekDay = new Date(
-      Date.UTC(year, month - 1, day),
-    ).getUTCDay();
-
-    const dayKeys: Record<number, string> = {
-      1: 'monday',
-      2: 'tuesday',
-      3: 'wednesday',
-      4: 'thursday',
-      5: 'friday',
-    };
-
-    return dayKeys[weekDay] ?? null;
-  }
-
-  private extractTime(value: string): string {
-    return value.slice(11, 16);
   }
 
   private resetEnabledDays(): void {
