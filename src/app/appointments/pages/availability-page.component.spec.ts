@@ -9,26 +9,13 @@ import {
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { ApiError } from '../model/api-error';
-import {
-  DentistAvailability,
-  UpdateDentistAvailabilityRequest,
-} from '../model/availability';
+import { DentistAvailability } from '../model/availability';
 import { AvailabilityPageComponent } from './availability-page.component';
 
 describe('AvailabilityPageComponent', () => {
   let fixture: ComponentFixture<AvailabilityPageComponent>;
   let requestedDentistIds: string[];
   let availabilityResponse$: Observable<DentistAvailability>;
-
-  let updatedAvailabilityRequests: Array<{
-    dentistId: string;
-    request: UpdateDentistAvailabilityRequest;
-  }>;
-
-  let updateAvailabilityResponseFactory: (
-    dentistId: string,
-    request: UpdateDentistAvailabilityRequest,
-  ) => Observable<DentistAvailability>;
 
   const availability: DentistAvailability = {
     id: 'availability-123',
@@ -40,45 +27,16 @@ describe('AvailabilityPageComponent', () => {
 
   beforeEach(async () => {
     requestedDentistIds = [];
-    updatedAvailabilityRequests = [];
     availabilityResponse$ = of(availability);
-
-    updateAvailabilityResponseFactory = (
-      dentistId,
-      request,
-    ) =>
-      of({
-        ...availability,
-        dentistId,
-        intervals: request.intervals,
-        blockedIntervals: request.blockedIntervals,
-        version: request.expectedVersion + 1,
-      });
 
     const api = {
       getDentistAvailability: (dentistId: string) => {
         requestedDentistIds.push(dentistId);
         return availabilityResponse$;
       },
-
-      updateDentistAvailability: (
-        dentistId: string,
-        request: UpdateDentistAvailabilityRequest,
-      ) => {
-        updatedAvailabilityRequests.push({
-          dentistId,
-          request,
-        });
-
-        return updateAvailabilityResponseFactory(
-          dentistId,
-          request,
-        );
-      },
     } as Pick<
       AppointmentsApiService,
-      | 'getDentistAvailability'
-      | 'updateDentistAvailability'
+      'getDentistAvailability'
     >;
 
     await TestBed.configureTestingModule({
@@ -226,168 +184,8 @@ describe('AvailabilityPageComponent', () => {
     expect(tuesdayEnabled?.checked).toBe(false);
   });
 
-  it('saves loaded dentist availability with the current version', () => {
-    const loadedAvailability: DentistAvailability = {
-      ...availability,
-      intervals: [
-        {
-          startAt: '2026-10-05T09:30:00-05:00',
-          endAt: '2026-10-05T11:30:00-05:00',
-        },
-      ],
-      blockedIntervals: [
-        {
-          startAt: '2026-10-05T12:00:00-05:00',
-          endAt: '2026-10-05T13:00:00-05:00',
-        },
-      ],
-      version: 7,
-    };
-
-    availabilityResponse$ = of(
-      loadedAvailability,
-    );
-
-    selectDentist('dentist-123');
-
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const saveButton =
-      element.querySelector<HTMLButtonElement>(
-        '[data-save-availability]',
-      );
-
-    expect(saveButton).not.toBeNull();
-
-    saveButton?.click();
-    fixture.detectChanges();
-
-    expect(updatedAvailabilityRequests).toEqual([
-      {
-        dentistId: 'dentist-123',
-        request: {
-          intervals:
-            loadedAvailability.intervals,
-          blockedIntervals:
-            loadedAvailability.blockedIntervals,
-          expectedVersion: 7,
-        },
-      },
-    ]);
-  });
-
-  it('disables save while availability update is pending', () => {
-    const updateResponse =
-      new Subject<DentistAvailability>();
-
-    updateAvailabilityResponseFactory = () =>
-      updateResponse;
-
+  it('updates an existing shift time in the weekly schedule', () => {
     availabilityResponse$ = of({
-      ...availability,
-      version: 4,
-    });
-
-    selectDentist('dentist-123');
-
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const saveButton =
-      element.querySelector<HTMLButtonElement>(
-        '[data-save-availability]',
-      );
-
-    expect(saveButton).not.toBeNull();
-    expect(saveButton?.disabled).toBe(false);
-
-    saveButton?.click();
-    fixture.detectChanges();
-
-    expect(updatedAvailabilityRequests).toHaveLength(
-      1,
-    );
-
-    expect(saveButton?.disabled).toBe(true);
-  });
-
-  it('shows stale version error when availability changed before save', () => {
-    const staleVersionError: ApiError = {
-      error: 'STALE_VERSION',
-      message:
-        'Availability was modified by another user.',
-      traceId: 'trace-stale-version-001',
-    };
-
-    updateAvailabilityResponseFactory = () =>
-      throwError(() => staleVersionError);
-
-    availabilityResponse$ = of({
-      ...availability,
-      version: 8,
-    });
-
-    selectDentist('dentist-123');
-
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const saveButton =
-      element.querySelector<HTMLButtonElement>(
-        '[data-save-availability]',
-      );
-
-    saveButton?.click();
-    fixture.detectChanges();
-
-    const saveError =
-      element.querySelector(
-        '[data-availability-save-error]',
-      );
-
-    expect(saveError).not.toBeNull();
-
-    expect(saveError?.textContent).toContain(
-      'Availability was modified by another user.',
-    );
-
-    expect(saveButton?.disabled).toBe(false);
-  });
-
-  it('shows success feedback after availability is saved', () => {
-    availabilityResponse$ = of({
-      ...availability,
-      version: 5,
-    });
-
-    selectDentist('dentist-123');
-
-    const element =
-      fixture.nativeElement as HTMLElement;
-
-    const saveButton =
-      element.querySelector<HTMLButtonElement>(
-        '[data-save-availability]',
-      );
-
-    saveButton?.click();
-    fixture.detectChanges();
-
-    const saveSuccess =
-      element.querySelector(
-        '[data-availability-save-success]',
-      );
-
-    expect(saveSuccess).not.toBeNull();
-
-    expect(saveSuccess?.textContent).toContain(
-      'Disponibilidad guardada correctamente.',
-    );
-  });
-
-  it('saves edited shift time using the clinic local date', () => {
-    const loadedAvailability: DentistAvailability = {
       ...availability,
       intervals: [
         {
@@ -395,12 +193,7 @@ describe('AvailabilityPageComponent', () => {
           endAt: '2026-10-06T03:30:00Z',
         },
       ],
-      version: 4,
-    };
-
-    availabilityResponse$ = of(
-      loadedAvailability,
-    );
+    });
 
     selectDentist('dentist-123');
 
@@ -429,31 +222,12 @@ describe('AvailabilityPageComponent', () => {
 
     fixture.detectChanges();
 
-    const saveButton =
-      element.querySelector<HTMLButtonElement>(
-        '[data-save-availability]',
+    const updatedStart =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-start]',
       );
 
-    saveButton?.click();
-    fixture.detectChanges();
-
-    expect(updatedAvailabilityRequests).toEqual([
-      {
-        dentistId: 'dentist-123',
-        request: {
-          intervals: [
-            {
-              startAt:
-                '2026-10-05T20:30:00-05:00',
-              endAt:
-                '2026-10-06T03:30:00Z',
-            },
-          ],
-          blockedIntervals: [],
-          expectedVersion: 4,
-        },
-      },
-    ]);
+    expect(updatedStart?.value).toBe('20:30');
   });
 
   it('shows loading and cancels the previous dentist request', () => {
