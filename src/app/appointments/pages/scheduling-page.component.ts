@@ -53,6 +53,10 @@ export class SchedulingPageComponent {
     | string
     | null = null;
 
+  private lastPatientSearch:
+    | string
+    | null = null;
+
   protected readonly clinicTimeZone =
     CLINIC_TIME_ZONE;
 
@@ -66,6 +70,12 @@ export class SchedulingPageComponent {
     signal<PatientView | null>(null);
 
   readonly isPatientSearchLoading =
+    signal(false);
+
+  readonly hasCompletedPatientSearch =
+    signal(false);
+
+  readonly hasPatientSearchError =
     signal(false);
 
   readonly selectedDate =
@@ -92,14 +102,20 @@ export class SchedulingPageComponent {
     this.patientSearchRequest?.unsubscribe();
 
     this.isPatientSearchLoading.set(false);
+    this.hasCompletedPatientSearch.set(false);
+    this.hasPatientSearchError.set(false);
     this.patientResults.set([]);
 
     const normalizedSearch =
       search.trim();
 
     if (!normalizedSearch) {
+      this.lastPatientSearch = null;
       return;
     }
+
+    this.lastPatientSearch =
+      normalizedSearch;
 
     this.isPatientSearchLoading.set(true);
 
@@ -124,11 +140,37 @@ export class SchedulingPageComponent {
             this.patientResults.set(
               page.data,
             );
+
+            this.hasCompletedPatientSearch.set(
+              true,
+            );
+
+            this.hasPatientSearchError.set(
+              false,
+            );
           },
           error: () => {
             this.patientResults.set([]);
+
+            this.hasCompletedPatientSearch.set(
+              false,
+            );
+
+            this.hasPatientSearchError.set(
+              true,
+            );
           },
         });
+  }
+
+  protected retryPatientSearch(): void {
+    if (!this.lastPatientSearch) {
+      return;
+    }
+
+    this.searchPatients(
+      this.lastPatientSearch,
+    );
   }
 
   protected selectPatient(
@@ -136,6 +178,8 @@ export class SchedulingPageComponent {
   ): void {
     this.selectedPatient.set(patient);
     this.patientResults.set([]);
+    this.hasCompletedPatientSearch.set(false);
+    this.hasPatientSearchError.set(false);
   }
 
   protected selectDentist(
