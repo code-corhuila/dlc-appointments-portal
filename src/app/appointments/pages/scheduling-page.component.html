@@ -83,6 +83,10 @@
             <p class="slot-placeholder" data-availability-loading>
               Consultando horarios disponibles...
             </p>
+          } @else if (hasLoadedAvailability() && availableSlots().length === 0) {
+            <p class="slot-placeholder" data-availability-empty>
+              No hay horarios disponibles para la fecha seleccionada.
+            </p>
           } @else if (selectedDate() && availableSlots().length === 0) {
             <p class="slot-placeholder">
               Seleccione un especialista para consultar los horarios disponibles.
