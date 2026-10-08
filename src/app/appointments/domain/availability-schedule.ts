@@ -128,6 +128,7 @@ export function mapAvailabilityIntervalsToWeek(
 export function deriveAvailabilitySlotsForDate(
   intervals: readonly AvailabilityInterval[],
   clinicDate: string,
+  blockedIntervals: readonly AvailabilityInterval[] = [],
   durationMinutes = DEFAULT_SLOT_DURATION_MINUTES,
 ): readonly AvailabilitySlot[] {
   const durationMilliseconds =
@@ -159,6 +160,16 @@ export function deriveAvailabilitySlotsForDate(
     ) {
       const slotEnd =
         slotStart + durationMilliseconds;
+
+      if (
+        overlapsBlockedInterval(
+          slotStart,
+          slotEnd,
+          blockedIntervals,
+        )
+      ) {
+        continue;
+      }
 
       const startPoint =
         toClinicSchedulePoint(
@@ -238,6 +249,34 @@ export function updateAvailabilityIntervalTime(
         `${localDate}T${time}`,
       ),
     };
+  });
+}
+
+function overlapsBlockedInterval(
+  slotStart: number,
+  slotEnd: number,
+  blockedIntervals: readonly AvailabilityInterval[],
+): boolean {
+  return blockedIntervals.some((blockedInterval) => {
+    const blockedStart =
+      new Date(blockedInterval.startAt).getTime();
+
+    const blockedEnd =
+      new Date(blockedInterval.endAt).getTime();
+
+    if (
+      Number.isNaN(blockedStart) ||
+      Number.isNaN(blockedEnd)
+    ) {
+      throw new Error(
+        'Invalid availability interval date-time',
+      );
+    }
+
+    return (
+      slotStart < blockedEnd &&
+      slotEnd > blockedStart
+    );
   });
 }
 
