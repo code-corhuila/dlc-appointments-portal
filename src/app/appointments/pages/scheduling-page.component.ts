@@ -6,7 +6,10 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription } from 'rxjs';
+import {
+  finalize,
+  Subscription,
+} from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
@@ -59,6 +62,9 @@ export class SchedulingPageComponent {
   readonly selectedSlot =
     signal<AvailabilitySlot | null>(null);
 
+  readonly isAvailabilityLoading =
+    signal(false);
+
   protected selectDentist(
     dentistId: string,
   ): void {
@@ -87,6 +93,7 @@ export class SchedulingPageComponent {
   private refreshAvailabilitySlots(): void {
     this.availabilityRequest?.unsubscribe();
 
+    this.isAvailabilityLoading.set(false);
     this.availableSlots.set([]);
     this.selectedSlot.set(null);
 
@@ -103,6 +110,8 @@ export class SchedulingPageComponent {
     const dentistId =
       this.selectedDentistId;
 
+    this.isAvailabilityLoading.set(true);
+
     this.availabilityRequest =
       this.api
         .getDentistAvailability(
@@ -112,6 +121,11 @@ export class SchedulingPageComponent {
           takeUntilDestroyed(
             this.destroyRef,
           ),
+          finalize(() => {
+            this.isAvailabilityLoading.set(
+              false,
+            );
+          }),
         )
         .subscribe({
           next: (availability) => {

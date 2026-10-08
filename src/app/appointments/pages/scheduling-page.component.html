@@ -68,6 +68,7 @@
 
         <div class="slots-section">
           <h3>Hora Sugerida</h3>
+
           <div class="slot-list">
             @for (slot of availableSlots(); track slot.startAt) {
               <button type="button" data-available-slot
@@ -78,7 +79,11 @@
             }
           </div>
 
-          @if (selectedDate() && availableSlots().length === 0) {
+          @if (isAvailabilityLoading()) {
+            <p class="slot-placeholder" data-availability-loading>
+              Consultando horarios disponibles...
+            </p>
+          } @else if (selectedDate() && availableSlots().length === 0) {
             <p class="slot-placeholder">
               Seleccione un especialista para consultar los horarios disponibles.
             </p>
