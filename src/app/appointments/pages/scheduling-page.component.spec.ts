@@ -278,6 +278,102 @@ describe('SchedulingPageComponent', () => {
     ).toContain('Ana Torres');
   });
 
+  it('ignores a stale patient search response after a newer search starts', () => {
+    const firstSearch =
+      new Subject<Page<PatientView>>();
+
+    const secondSearch =
+      new Subject<Page<PatientView>>();
+
+    patientSearchResponse = firstSearch;
+
+    searchPatient('Ana');
+
+    patientSearchResponse = secondSearch;
+
+    searchPatient('Beatriz');
+
+    firstSearch.next({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    firstSearch.complete();
+    fixture.detectChanges();
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+      {
+        search: 'Beatriz',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    expect(
+      element.querySelectorAll('[data-patient-result]').length,
+    ).toBe(0);
+
+    expect(
+      element.querySelector('[data-patient-loading]'),
+    ).not.toBeNull();
+
+    secondSearch.next({
+      data: [
+        {
+          id: 'patient-456',
+          name: 'Beatriz Gómez',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '987654321',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    secondSearch.complete();
+    fixture.detectChanges();
+
+    const result = element.querySelector(
+      '[data-patient-result]',
+    );
+
+    expect(result?.textContent)
+      .toContain('Beatriz Gómez');
+
+    expect(result?.textContent)
+      .not.toContain('Ana Torres');
+
+    expect(
+      element.querySelector('[data-patient-loading]'),
+    ).toBeNull();
+  });
+
   it('selects a patient and shows it in the appointment summary', () => {
     patientSearchResponse = of({
       data: [
