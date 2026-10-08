@@ -96,6 +96,94 @@ describe('AvailabilityPageComponent', () => {
     ]);
   });
 
+  it('renders loaded availability interval in the weekly schedule', () => {
+    availabilityResponse$ = of({
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-05T09:30:00-05:00',
+          endAt: '2026-10-05T11:30:00-05:00',
+        },
+      ],
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const monday =
+      element.querySelector(
+        '[data-day="monday"]',
+      ) as HTMLElement;
+
+    const start =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-start]',
+      );
+
+    const end =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-end]',
+      );
+
+    expect(start?.value).toBe('09:30');
+    expect(end?.value).toBe('11:30');
+  });
+
+  it('renders UTC availability using the clinic local weekday and time', () => {
+    availabilityResponse$ = of({
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-06T02:30:00Z',
+          endAt: '2026-10-06T03:30:00Z',
+        },
+      ],
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const monday =
+      element.querySelector(
+        '[data-day="monday"]',
+      ) as HTMLElement;
+
+    const tuesday =
+      element.querySelector(
+        '[data-day="tuesday"]',
+      ) as HTMLElement;
+
+    const mondayEnabled =
+      monday.querySelector<HTMLInputElement>(
+        'input[type="checkbox"]',
+      );
+
+    const mondayStart =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-start]',
+      );
+
+    const mondayEnd =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-end]',
+      );
+
+    const tuesdayEnabled =
+      tuesday.querySelector<HTMLInputElement>(
+        'input[type="checkbox"]',
+      );
+
+    expect(mondayEnabled?.checked).toBe(true);
+    expect(mondayStart?.value).toBe('21:30');
+    expect(mondayEnd?.value).toBe('22:30');
+
+    expect(tuesdayEnabled?.checked).toBe(false);
+  });
+
   it('shows loading and cancels the previous dentist request', () => {
     const firstResponse =
       new Subject<DentistAvailability>();

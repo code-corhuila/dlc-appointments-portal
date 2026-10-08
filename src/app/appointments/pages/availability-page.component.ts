@@ -10,11 +10,16 @@ import { finalize, Subscription } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
+  AvailabilityDayDefaults,
+  AvailabilityDayKey,
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
+  mapAvailabilityIntervalsToWeek,
+  WeeklyAvailabilitySchedule,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { ApiError } from '../model/api-error';
+import { DentistAvailability } from '../model/availability';
 
 @Component({
   selector: 'app-availability-page',
@@ -120,7 +125,7 @@ import { ApiError } from '../model/api-error';
                 <input
                   [id]="day.key + '-shift-one-start'"
                   type="time"
-                  [value]="day.shiftOne.start"
+                  [value]="shiftStart(day, 0)"
                   data-shift-one-start
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -132,7 +137,7 @@ import { ApiError } from '../model/api-error';
                 <input
                   [id]="day.key + '-shift-one-end'"
                   type="time"
-                  [value]="day.shiftOne.end"
+                  [value]="shiftEnd(day, 0)"
                   data-shift-one-end
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -142,7 +147,7 @@ import { ApiError } from '../model/api-error';
                 <input
                   type="checkbox"
                   [id]="day.key + '-second-shift'"
-                  [checked]="day.shiftTwo.enabled"
+                  [checked]="isSecondShiftEnabled(day)"
                   [disabled]="!isDayEnabled(day.key)"
                 />
 
@@ -161,7 +166,7 @@ import { ApiError } from '../model/api-error';
                 <input
                   [id]="day.key + '-shift-two-start'"
                   type="time"
-                  [value]="day.shiftTwo.start"
+                  [value]="shiftStart(day, 1)"
                   data-shift-two-start
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -173,7 +178,7 @@ import { ApiError } from '../model/api-error';
                 <input
                   [id]="day.key + '-shift-two-end'"
                   type="time"
-                  [value]="day.shiftTwo.end"
+                  [value]="shiftEnd(day, 1)"
                   data-shift-two-end
                   [disabled]="!isDayEnabled(day.key)"
                 />
@@ -246,6 +251,11 @@ export class AvailabilityPageComponent {
   protected readonly availabilityError =
     signal<ApiError | null>(null);
 
+  private readonly loadedSchedule =
+    signal<WeeklyAvailabilitySchedule>({});
+
+  private readonly hasLoadedAvailability = signal(false);
+
   private selectedDentistId: string | null = null;
 
   private readonly enabledDays = signal<Record<string, boolean>>(
@@ -265,6 +275,9 @@ export class AvailabilityPageComponent {
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
       this.availabilityEmpty.set(false);
+      this.hasLoadedAvailability.set(false);
+      this.loadedSchedule.set({});
+      this.resetEnabledDays();
       return;
     }
 
@@ -272,6 +285,8 @@ export class AvailabilityPageComponent {
     this.availabilityError.set(null);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
+    this.hasLoadedAvailability.set(false);
+    this.loadedSchedule.set({});
 
     this.availabilityRequest = this.api
       .getDentistAvailability(dentistId)
@@ -283,6 +298,8 @@ export class AvailabilityPageComponent {
       )
       .subscribe({
         next: (availability) => {
+          this.applyAvailability(availability);
+
           this.availabilityEmpty.set(
             availability.intervals.length === 0,
           );
@@ -304,6 +321,56 @@ export class AvailabilityPageComponent {
     );
   }
 
+  protected shiftStart(
+    day: AvailabilityDayDefaults,
+    index: number,
+  ): string {
+    const shift =
+      this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.[index];
+
+    if (this.hasLoadedAvailability()) {
+      return shift?.start ?? '';
+    }
+
+    return index === 0
+      ? day.shiftOne.start
+      : day.shiftTwo.start;
+  }
+
+  protected shiftEnd(
+    day: AvailabilityDayDefaults,
+    index: number,
+  ): string {
+    const shift =
+      this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.[index];
+
+    if (this.hasLoadedAvailability()) {
+      return shift?.end ?? '';
+    }
+
+    return index === 0
+      ? day.shiftOne.end
+      : day.shiftTwo.end;
+  }
+
+  protected isSecondShiftEnabled(
+    day: AvailabilityDayDefaults,
+  ): boolean {
+    if (!this.hasLoadedAvailability()) {
+      return day.shiftTwo.enabled;
+    }
+
+    return (
+      (this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.length ?? 0) > 1
+    );
+  }
+
   protected isDayEnabled(day: string): boolean {
     return this.enabledDays()[day] ?? false;
   }
@@ -316,5 +383,41 @@ export class AvailabilityPageComponent {
       ...current,
       [day]: enabled,
     }));
+  }
+
+  private applyAvailability(
+    availability: DentistAvailability,
+  ): void {
+    const schedule =
+      mapAvailabilityIntervalsToWeek(
+        availability.intervals,
+      );
+
+    this.loadedSchedule.set(schedule);
+    this.hasLoadedAvailability.set(true);
+
+    this.enabledDays.set(
+      Object.fromEntries(
+        DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
+          day.key,
+          (
+            schedule[
+              day.key as AvailabilityDayKey
+            ]?.length ?? 0
+          ) > 0,
+        ]),
+      ),
+    );
+  }
+
+  private resetEnabledDays(): void {
+    this.enabledDays.set(
+      Object.fromEntries(
+        DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
+          day.key,
+          day.enabled,
+        ]),
+      ),
+    );
   }
 }
