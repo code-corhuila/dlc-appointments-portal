@@ -8,6 +8,10 @@ import {
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { PatientsLookupService } from '../data/patients-lookup.service';
+import {
+  Appointment,
+  CreateAppointmentRequest,
+} from '../model/appointment';
 import { DentistAvailability } from '../model/availability';
 import { Page } from '../model/page';
 import {
@@ -24,6 +28,13 @@ describe('SchedulingPageComponent', () => {
   let patientSearches: PatientLookupQuery[];
   let patientSearchResponse: Observable<Page<PatientView>>;
 
+  let appointmentCreations: Array<{
+    request: CreateAppointmentRequest;
+    idempotencyKey: string;
+  }>;
+
+  let appointmentCreationResponse: Observable<Appointment>;
+
   const availability: DentistAvailability = {
     id: 'availability-123',
     dentistId: 'dentist-123',
@@ -34,6 +45,17 @@ describe('SchedulingPageComponent', () => {
       },
     ],
     blockedIntervals: [],
+    version: 1,
+  };
+
+  const createdAppointment: Appointment = {
+    id: 'appointment-123',
+    patientId: 'patient-123',
+    dentistId: 'dentist-123',
+    startAt: '2026-10-05T09:00:00-05:00',
+    endAt: '2026-10-05T09:30:00-05:00',
+    reason: 'Control general',
+    status: 'PROGRAMADA',
     version: 1,
   };
 
@@ -52,6 +74,11 @@ describe('SchedulingPageComponent', () => {
       },
     });
 
+    appointmentCreations = [];
+    appointmentCreationResponse = of(
+      createdAppointment,
+    );
+
     await TestBed.configureTestingModule({
       imports: [SchedulingPageComponent],
       providers: [
@@ -61,6 +88,17 @@ describe('SchedulingPageComponent', () => {
             getDentistAvailability: (dentistId: string) => {
               requestedDentistIds.push(dentistId);
               return availabilityResponse;
+            },
+            createAppointment: (
+              request: CreateAppointmentRequest,
+              idempotencyKey: string,
+            ) => {
+              appointmentCreations.push({
+                request,
+                idempotencyKey,
+              });
+
+              return appointmentCreationResponse;
             },
           },
         },
@@ -418,6 +456,104 @@ describe('SchedulingPageComponent', () => {
     ).toBe(0);
   });
 
+  it('creates an appointment from the selected patient dentist slot and reason', () => {
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    const reason =
+      element.querySelector<HTMLTextAreaElement>(
+        '#reason',
+      );
+
+    expect(reason).not.toBeNull();
+
+    if (reason) {
+      reason.value = 'Control general';
+      reason.dispatchEvent(
+        new Event('input'),
+      );
+    }
+
+    fixture.detectChanges();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    expect(
+      appointmentCreations[0]?.request,
+    ).toEqual({
+      patientId: 'patient-123',
+      dentistId: 'dentist-123',
+      startAt:
+        '2026-10-05T09:00:00-05:00',
+      endAt:
+        '2026-10-05T09:30:00-05:00',
+      reason: 'Control general',
+    });
+
+    expect(
+      appointmentCreations[0]?.idempotencyKey,
+    ).toEqual(expect.any(String));
+
+    expect(
+      appointmentCreations[0]?.idempotencyKey.length,
+    ).toBeGreaterThan(0);
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
@@ -543,8 +679,11 @@ describe('SchedulingPageComponent', () => {
   });
 
   it('ignores a stale availability response after the selected date changes', () => {
-    const firstRequest = new Subject<DentistAvailability>();
-    const secondRequest = new Subject<DentistAvailability>();
+    const firstRequest =
+      new Subject<DentistAvailability>();
+
+    const secondRequest =
+      new Subject<DentistAvailability>();
 
     availabilityResponse = firstRequest;
 
@@ -564,11 +703,12 @@ describe('SchedulingPageComponent', () => {
         },
       ],
     });
-    firstRequest.complete();
 
+    firstRequest.complete();
     fixture.detectChanges();
 
-    const element = fixture.nativeElement as HTMLElement;
+    const element =
+      fixture.nativeElement as HTMLElement;
 
     expect(
       element.querySelectorAll('[data-available-slot]').length,
@@ -587,8 +727,8 @@ describe('SchedulingPageComponent', () => {
         },
       ],
     });
-    secondRequest.complete();
 
+    secondRequest.complete();
     fixture.detectChanges();
 
     const slots = Array.from(
@@ -603,7 +743,10 @@ describe('SchedulingPageComponent', () => {
     ]);
 
     expect(
-      slots.map((slot) => slot.textContent?.trim()),
+      slots.map(
+        (slot) =>
+          slot.textContent?.trim(),
+      ),
     ).toEqual(['10:00', '10:30']);
 
     expect(
@@ -626,7 +769,10 @@ describe('SchedulingPageComponent', () => {
     expect(requestedDentistIds).toEqual(['dentist-123']);
 
     expect(
-      slots.map((slot) => slot.textContent?.trim()),
+      slots.map(
+        (slot) =>
+          slot.textContent?.trim(),
+      ),
     ).toEqual(['09:00', '09:30']);
   });
 
@@ -636,9 +782,10 @@ describe('SchedulingPageComponent', () => {
 
     const element = fixture.nativeElement as HTMLElement;
 
-    const slots = element.querySelectorAll<HTMLButtonElement>(
-      '[data-available-slot]',
-    );
+    const slots =
+      element.querySelectorAll<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
 
     expect(slots.length).toBe(2);
 
@@ -646,7 +793,9 @@ describe('SchedulingPageComponent', () => {
     fixture.detectChanges();
 
     expect(
-      slots[0].getAttribute('aria-pressed'),
+      slots[0].getAttribute(
+        'aria-pressed',
+      ),
     ).toBe('true');
 
     expect(
@@ -657,16 +806,23 @@ describe('SchedulingPageComponent', () => {
   it('provides the appointment confirmation action', () => {
     const element = fixture.nativeElement as HTMLElement;
 
-    const button = element.querySelector<HTMLButtonElement>(
-      '[data-confirm-appointment]',
-    );
+    const button =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
 
     expect(button).not.toBeNull();
-    expect(button?.textContent).toContain('Confirmar Cita');
+
+    expect(
+      button?.textContent,
+    ).toContain('Confirmar Cita');
   });
 
-  function searchPatient(search: string): void {
-    const element = fixture.nativeElement as HTMLElement;
+  function searchPatient(
+    search: string,
+  ): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
 
     const input =
       element.querySelector<HTMLInputElement>(
@@ -677,21 +833,31 @@ describe('SchedulingPageComponent', () => {
 
     if (input) {
       input.value = search;
-      input.dispatchEvent(new Event('input'));
+
+      input.dispatchEvent(
+        new Event('input'),
+      );
     }
 
     fixture.detectChanges();
   }
 
-  function selectDentist(dentistId: string): void {
-    const element = fixture.nativeElement as HTMLElement;
+  function selectDentist(
+    dentistId: string,
+  ): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
 
     const select =
-      element.querySelector<HTMLSelectElement>('#dentist');
+      element.querySelector<HTMLSelectElement>(
+        '#dentist',
+      );
 
     expect(select).not.toBeNull();
 
-    const option = document.createElement('option');
+    const option =
+      document.createElement('option');
+
     option.value = dentistId;
     option.textContent = 'Dentist test';
 
@@ -699,14 +865,20 @@ describe('SchedulingPageComponent', () => {
 
     if (select) {
       select.value = dentistId;
-      select.dispatchEvent(new Event('change'));
+
+      select.dispatchEvent(
+        new Event('change'),
+      );
     }
 
     fixture.detectChanges();
   }
 
-  function selectDate(date: string): void {
-    const element = fixture.nativeElement as HTMLElement;
+  function selectDate(
+    date: string,
+  ): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
 
     const input =
       element.querySelector<HTMLInputElement>(
@@ -717,7 +889,10 @@ describe('SchedulingPageComponent', () => {
 
     if (input) {
       input.value = date;
-      input.dispatchEvent(new Event('change'));
+
+      input.dispatchEvent(
+        new Event('change'),
+      );
     }
 
     fixture.detectChanges();
