@@ -204,6 +204,75 @@ describe('SchedulingPageComponent', () => {
     ).not.toBeNull();
   });
 
+  it('ignores a stale availability response after the selected date changes', () => {
+    const firstRequest = new Subject<DentistAvailability>();
+    const secondRequest = new Subject<DentistAvailability>();
+
+    availabilityResponse = firstRequest;
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    availabilityResponse = secondRequest;
+
+    selectDate('2026-10-06');
+
+    firstRequest.next({
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-05T14:00:00Z',
+          endAt: '2026-10-05T15:00:00Z',
+        },
+      ],
+    });
+    firstRequest.complete();
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      element.querySelectorAll('[data-available-slot]').length,
+    ).toBe(0);
+
+    expect(
+      element.querySelector('[data-availability-loading]'),
+    ).not.toBeNull();
+
+    secondRequest.next({
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-06T15:00:00Z',
+          endAt: '2026-10-06T16:00:00Z',
+        },
+      ],
+    });
+    secondRequest.complete();
+
+    fixture.detectChanges();
+
+    const slots = Array.from(
+      element.querySelectorAll<HTMLButtonElement>(
+        '[data-available-slot]',
+      ),
+    );
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+      'dentist-123',
+    ]);
+
+    expect(
+      slots.map((slot) => slot.textContent?.trim()),
+    ).toEqual(['10:00', '10:30']);
+
+    expect(
+      element.querySelector('[data-availability-loading]'),
+    ).toBeNull();
+  });
+
   it('loads dentist availability and renders slots for the selected date', () => {
     selectDentist('dentist-123');
     selectDate('2026-10-05');
