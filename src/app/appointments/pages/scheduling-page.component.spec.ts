@@ -44,24 +44,44 @@ describe('SchedulingPageComponent', () => {
     fixture.detectChanges();
   });
 
-  it('renders the appointment scheduling structure', () => {
+  it('renders the scheduling structure aligned with the mockup', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('h1')?.textContent)
       .toContain('Agendar Nueva Cita');
-    expect(element.textContent).toContain('1. Paciente');
-    expect(element.textContent).toContain('2. Fecha y horario');
-    expect(element.textContent).toContain('3. Odontólogo');
-    expect(element.textContent).toContain('4. Motivo');
+
+    expect(element.textContent).toContain('Paciente');
+    expect(element.textContent).toContain('Detalles de la Cita');
+    expect(element.textContent).toContain('Especialista');
+    expect(element.textContent).toContain('Motivo y Notas');
     expect(element.textContent).toContain('Resumen de Cita');
+
+    expect(
+      element.querySelector('[data-new-patient]'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('#specialty'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('#consultation-type'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('#dentist'),
+    ).not.toBeNull();
   });
 
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
-    expect(element.textContent).toContain('Horarios disponibles');
+    expect(element.textContent).toContain('Hora Sugerida');
     expect(element.textContent).toContain('America/Bogota');
-    expect(element.querySelectorAll('[data-available-slot]').length).toBe(0);
+
+    expect(
+      element.querySelectorAll('[data-available-slot]').length,
+    ).toBe(0);
   });
 
   it('loads dentist availability and renders slots for the selected date', () => {
@@ -69,6 +89,7 @@ describe('SchedulingPageComponent', () => {
     selectDate('2026-10-05');
 
     const element = fixture.nativeElement as HTMLElement;
+
     const slots = Array.from(
       element.querySelectorAll<HTMLButtonElement>(
         '[data-available-slot]',
@@ -76,8 +97,10 @@ describe('SchedulingPageComponent', () => {
     );
 
     expect(requestedDentistIds).toEqual(['dentist-123']);
-    expect(slots.map((slot) => slot.textContent?.trim()))
-      .toEqual(['09:00', '09:30']);
+
+    expect(
+      slots.map((slot) => slot.textContent?.trim()),
+    ).toEqual(['09:00', '09:30']);
   });
 
   it('allows a derived availability slot to be selected', () => {
@@ -85,6 +108,7 @@ describe('SchedulingPageComponent', () => {
     selectDate('2026-10-05');
 
     const element = fixture.nativeElement as HTMLElement;
+
     const slots = element.querySelectorAll<HTMLButtonElement>(
       '[data-available-slot]',
     );
@@ -94,13 +118,18 @@ describe('SchedulingPageComponent', () => {
     slots[0].click();
     fixture.detectChanges();
 
-    expect(slots[0].getAttribute('aria-pressed')).toBe('true');
-    expect(element.querySelector('[data-selected-slot]')?.textContent)
-      .toContain('09:00');
+    expect(
+      slots[0].getAttribute('aria-pressed'),
+    ).toBe('true');
+
+    expect(
+      element.querySelector('[data-selected-slot]')?.textContent,
+    ).toContain('09:00');
   });
 
   it('provides the appointment confirmation action', () => {
     const element = fixture.nativeElement as HTMLElement;
+
     const button = element.querySelector<HTMLButtonElement>(
       '[data-confirm-appointment]',
     );
@@ -111,13 +140,16 @@ describe('SchedulingPageComponent', () => {
 
   function selectDentist(dentistId: string): void {
     const element = fixture.nativeElement as HTMLElement;
-    const select = element.querySelector<HTMLSelectElement>('#dentist');
+
+    const select =
+      element.querySelector<HTMLSelectElement>('#dentist');
 
     expect(select).not.toBeNull();
 
     const option = document.createElement('option');
     option.value = dentistId;
     option.textContent = 'Dentist test';
+
     select?.append(option);
 
     if (select) {
@@ -130,9 +162,11 @@ describe('SchedulingPageComponent', () => {
 
   function selectDate(date: string): void {
     const element = fixture.nativeElement as HTMLElement;
-    const input = element.querySelector<HTMLInputElement>(
-      '#appointment-date',
-    );
+
+    const input =
+      element.querySelector<HTMLInputElement>(
+        '#appointment-date',
+      );
 
     expect(input).not.toBeNull();
 
