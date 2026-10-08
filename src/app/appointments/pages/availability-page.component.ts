@@ -201,6 +201,14 @@ import { DentistAvailability } from '../model/availability';
               </div>
             </article>
           }
+
+          <button
+            type="button"
+            data-save-availability
+            (click)="saveAvailability()"
+          >
+            Guardar Configuración Semanal
+          </button>
         </section>
 
         <aside class="generator-panel">
@@ -240,6 +248,7 @@ export class AvailabilityPageComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   private availabilityRequest?: Subscription;
+  private loadedAvailability: DentistAvailability | null = null;
 
   protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
   protected readonly slotDurationMinutes =
@@ -272,6 +281,7 @@ export class AvailabilityPageComponent {
 
     if (!dentistId) {
       this.selectedDentistId = null;
+      this.loadedAvailability = null;
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
       this.availabilityEmpty.set(false);
@@ -282,6 +292,7 @@ export class AvailabilityPageComponent {
     }
 
     this.selectedDentistId = dentistId;
+    this.loadedAvailability = null;
     this.availabilityError.set(null);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
@@ -298,6 +309,7 @@ export class AvailabilityPageComponent {
       )
       .subscribe({
         next: (availability) => {
+          this.loadedAvailability = availability;
           this.applyAvailability(availability);
 
           this.availabilityEmpty.set(
@@ -305,6 +317,7 @@ export class AvailabilityPageComponent {
           );
         },
         error: (error: ApiError) => {
+          this.loadedAvailability = null;
           this.availabilityEmpty.set(false);
           this.availabilityError.set(error);
         },
@@ -319,6 +332,48 @@ export class AvailabilityPageComponent {
     this.loadAvailability(
       this.selectedDentistId,
     );
+  }
+
+  protected saveAvailability(): void {
+    if (
+      !this.selectedDentistId ||
+      !this.loadedAvailability
+    ) {
+      return;
+    }
+
+    const currentAvailability =
+      this.loadedAvailability;
+
+    this.api
+      .updateDentistAvailability(
+        this.selectedDentistId,
+        {
+          intervals:
+            currentAvailability.intervals,
+          blockedIntervals:
+            currentAvailability.blockedIntervals,
+          expectedVersion:
+            currentAvailability.version,
+        },
+      )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (updatedAvailability) => {
+          this.loadedAvailability =
+            updatedAvailability;
+
+          this.applyAvailability(
+            updatedAvailability,
+          );
+
+          this.availabilityEmpty.set(
+            updatedAvailability.intervals.length === 0,
+          );
+        },
+      });
   }
 
   protected shiftStart(
