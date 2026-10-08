@@ -312,6 +312,49 @@ describe('AvailabilityPageComponent', () => {
     expect(saveButton?.disabled).toBe(true);
   });
 
+  it('shows stale version error when availability changed before save', () => {
+    const staleVersionError: ApiError = {
+      error: 'STALE_VERSION',
+      message:
+        'Availability was modified by another user.',
+      traceId: 'trace-stale-version-001',
+    };
+
+    updateAvailabilityResponseFactory = () =>
+      throwError(() => staleVersionError);
+
+    availabilityResponse$ = of({
+      ...availability,
+      version: 8,
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const saveButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-save-availability]',
+      );
+
+    saveButton?.click();
+    fixture.detectChanges();
+
+    const saveError =
+      element.querySelector(
+        '[data-availability-save-error]',
+      );
+
+    expect(saveError).not.toBeNull();
+
+    expect(saveError?.textContent).toContain(
+      'Availability was modified by another user.',
+    );
+
+    expect(saveButton?.disabled).toBe(false);
+  });
+
   it('saves edited shift time using the clinic local date', () => {
     const loadedAvailability: DentistAvailability = {
       ...availability,
