@@ -1,122 +1,166 @@
 <main class="scheduling-page">
-  <header>
+  <header class="page-header">
     <h1>Agendar Nueva Cita</h1>
-    <p>
-      Complete los detalles para programar una cita.
-    </p>
+    <p>Complete los detalles para programar una cita.</p>
   </header>
 
-  <section>
-    <h2>1. Paciente</h2>
+  <div class="scheduling-content">
+    <div class="form-column">
+      <section class="form-card patient-card">
+        <div class="section-heading">
+          <div><span class="section-number">1</span><h2>Paciente</h2></div>
+          <button type="button" class="secondary-action" data-new-patient>
+            <span aria-hidden="true">+</span> Nuevo Paciente
+          </button>
+        </div>
 
-    <label for="patient-search">
-      Buscar paciente
-    </label>
+        <label for="patient-search">Buscar paciente</label>
+        <div class="search-control">
+          <span class="control-icon" aria-hidden="true">⌕</span>
+          <input id="patient-search" type="search"
+            placeholder="Buscar por nombre, documento o teléfono..." />
+        </div>
+      </section>
 
-    <input
-      id="patient-search"
-      type="search"
-      placeholder="Buscar por nombre o documento"
-    />
-  </section>
+      <section class="form-card appointment-details-card">
+        <div class="section-heading">
+          <div><span class="section-number">2</span><h2>Detalles de la Cita</h2></div>
+        </div>
 
-  <section>
-    <h2>2. Fecha y horario</h2>
+        <div class="details-grid">
+          <div>
+            <label for="specialty">Especialidad Requerida</label>
+            <select id="specialty" disabled>
+              <option>Seleccionar especialidad</option>
+            </select>
+          </div>
+          <div>
+            <label for="consultation-type">Tipo de Consulta</label>
+            <select id="consultation-type" disabled>
+              <option>Seleccionar tipo de consulta</option>
+            </select>
+          </div>
+        </div>
 
-    <label for="appointment-date">
-      Fecha
-    </label>
+        <div class="date-section">
+          <div class="field-heading">
+            <label>Fecha Disponible</label>
+            <span>Zona horaria: <strong>{{ clinicTimeZone }}</strong></span>
+          </div>
 
-    <input
-      id="appointment-date"
-      type="date"
-      (change)="
-        selectDate(
-          $any($event.target).value
-        )
-      "
-    />
+          <input id="appointment-date" class="native-date-input" type="date"
+            [value]="selectedDate() ?? ''"
+            (change)="selectDate($any($event.target).value)" />
 
-    <h3>Horarios disponibles</h3>
+          <div class="date-options" aria-label="Fechas disponibles">
+            @for (date of dateOptions; track date.value) {
+              <button type="button" class="date-option"
+                [class.is-selected]="selectedDate() === date.value"
+                [attr.aria-pressed]="selectedDate() === date.value"
+                (click)="selectDate(date.value)">
+                <span class="date-weekday">{{ date.weekday }}</span>
+                <strong class="date-day">{{ date.day }}</strong>
+                <span class="date-month">{{ date.month }}</span>
+              </button>
+            }
+          </div>
+        </div>
 
-    <div>
-      @for (
-        slot of availableSlots();
-        track slot.startAt
-      ) {
-        <button
-          type="button"
-          data-available-slot
-          [attr.aria-pressed]="
-            selectedSlot()?.startAt ===
-            slot.startAt
-          "
-          (click)="selectSlot(slot)"
-        >
-          {{ slot.label }}
-        </button>
-      }
+        <div class="slots-section">
+          <h3>Hora Sugerida</h3>
+          <div class="slot-list">
+            @for (slot of availableSlots(); track slot.startAt) {
+              <button type="button" data-available-slot
+                [attr.aria-pressed]="selectedSlot()?.startAt === slot.startAt"
+                (click)="selectSlot(slot)">
+                {{ slot.label }}
+              </button>
+            }
+          </div>
+
+          @if (selectedDate() && availableSlots().length === 0) {
+            <p class="slot-placeholder">
+              Seleccione un especialista para consultar los horarios disponibles.
+            </p>
+          }
+        </div>
+      </section>
+
+      <section class="form-card specialist-section">
+        <div class="section-heading">
+          <div><span class="section-number">3</span><h2>Especialista</h2></div>
+        </div>
+
+        <select id="dentist" class="native-dentist-select"
+          aria-label="Seleccionar odontólogo"
+          (change)="selectDentist($any($event.target).value)">
+          <option value="">Seleccione un odontólogo</option>
+        </select>
+
+        <div class="specialist-options" aria-label="Especialistas disponibles">
+          <button type="button" class="specialist-option" disabled>
+            <span class="specialist-photo" aria-hidden="true">👨‍⚕️</span>
+            <span class="specialist-info">
+              <strong>Dr. Martín Torres</strong>
+              <span>Odontología General</span>
+            </span>
+          </button>
+
+          <button type="button" class="specialist-option" disabled>
+            <span class="specialist-photo" aria-hidden="true">👩‍⚕️</span>
+            <span class="specialist-info">
+              <strong>Dra. Elena Silva</strong>
+              <span>Ortodoncia</span>
+            </span>
+          </button>
+        </div>
+
+        <p class="specialist-helper">
+          La selección real se habilitará desde el directorio autorizado de odontólogos.
+        </p>
+      </section>
+
+      <section class="form-card notes-section">
+        <div class="section-heading">
+          <div><span class="section-number">4</span><h2>Motivo y Notas</h2></div>
+        </div>
+
+        <label for="reason">Motivo de la cita</label>
+        <textarea id="reason"
+          placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."></textarea>
+      </section>
     </div>
 
-    <p>
-      Zona horaria:
-      <strong>{{ clinicTimeZone }}</strong>
-    </p>
-  </section>
+    <aside class="summary-card">
+      <h2>Resumen de Cita</h2>
 
-  <section>
-    <h2>3. Odontólogo</h2>
+      <div class="summary-row">
+        <span>Paciente</span><strong>No seleccionado</strong>
+      </div>
 
-    <label for="dentist">
-      Seleccionar odontólogo
-    </label>
+      <div class="summary-row">
+        <span>Fecha y Hora</span>
+        <strong data-selected-slot>
+          @if (selectedDate()) {
+            {{ selectedDate() }}
+            @if (selectedSlot()) { · {{ selectedSlot()?.label }} }
+          } @else {
+            No seleccionada
+          }
+        </strong>
+      </div>
 
-    <select
-      id="dentist"
-      (change)="
-        selectDentist(
-          $any($event.target).value
-        )
-      "
-    >
-      <option value="">
-        Seleccione un odontólogo
-      </option>
-    </select>
-  </section>
+      <div class="summary-row">
+        <span>Servicio</span><strong>No seleccionado</strong>
+      </div>
 
-  <section>
-    <h2>4. Motivo</h2>
+      <div class="summary-row">
+        <span>Especialista</span><strong>No seleccionado</strong>
+      </div>
 
-    <label for="reason">
-      Motivo de la cita
-    </label>
-
-    <textarea
-      id="reason"
-      placeholder="Escriba el motivo principal de la cita"
-    ></textarea>
-  </section>
-
-  <aside>
-    <h2>Resumen de Cita</h2>
-
-    <p>Paciente: No seleccionado</p>
-    <p>Odontólogo: No seleccionado</p>
-
-    <p data-selected-slot>
-      Fecha y hora:
-      {{
-        selectedSlot()?.label ??
-          'No seleccionada'
-      }}
-    </p>
-
-    <button
-      type="button"
-      data-confirm-appointment
-    >
-      Confirmar Cita
-    </button>
-  </aside>
+      <button type="button" data-confirm-appointment>
+        Confirmar Cita <span aria-hidden="true">✓</span>
+      </button>
+    </aside>
+  </div>
 </main>
