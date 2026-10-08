@@ -103,16 +103,30 @@
 
         <div class="details-grid">
           <div>
-            <label for="specialty">Especialidad Requerida</label>
-            <select id="specialty" disabled>
-              <option>Seleccionar especialidad</option>
+            <label for="specialty">
+              Especialidad Requerida
+            </label>
+
+            <select
+              id="specialty"
+              disabled>
+              <option>
+                Seleccionar especialidad
+              </option>
             </select>
           </div>
 
           <div>
-            <label for="consultation-type">Tipo de Consulta</label>
-            <select id="consultation-type" disabled>
-              <option>Seleccionar tipo de consulta</option>
+            <label for="consultation-type">
+              Tipo de Consulta
+            </label>
+
+            <select
+              id="consultation-type"
+              disabled>
+              <option>
+                Seleccionar tipo de consulta
+              </option>
             </select>
           </div>
         </div>
@@ -141,8 +155,12 @@
               <button
                 type="button"
                 class="date-option"
-                [class.is-selected]="selectedDate() === date.value"
-                [attr.aria-pressed]="selectedDate() === date.value"
+                [class.is-selected]="
+                  selectedDate() === date.value
+                "
+                [attr.aria-pressed]="
+                  selectedDate() === date.value
+                "
                 (click)="selectDate(date.value)">
                 <span class="date-weekday">
                   {{ date.weekday }}
@@ -164,11 +182,17 @@
           <h3>Hora Sugerida</h3>
 
           <div class="slot-list">
-            @for (slot of availableSlots(); track slot.startAt) {
+            @for (
+              slot of availableSlots();
+              track slot.startAt
+            ) {
               <button
                 type="button"
                 data-available-slot
-                [attr.aria-pressed]="selectedSlot()?.startAt === slot.startAt"
+                [attr.aria-pressed]="
+                  selectedSlot()?.startAt ===
+                  slot.startAt
+                "
                 (click)="selectSlot(slot)">
                 {{ slot.label }}
               </button>
@@ -282,7 +306,9 @@
           </div>
         </div>
 
-        <label for="reason">Motivo de la cita</label>
+        <label for="reason">
+          Motivo de la cita
+        </label>
 
         <textarea
           id="reason"
@@ -332,6 +358,15 @@
         <strong>No seleccionado</strong>
       </div>
 
+      @if (appointmentSuccess()) {
+        <p
+          class="slot-placeholder"
+          data-appointment-success
+          role="status">
+          {{ appointmentSuccess() }}
+        </p>
+      }
+
       @if (appointmentError()) {
         <p
           class="slot-placeholder"
@@ -345,7 +380,9 @@
         type="button"
         data-confirm-appointment
         [disabled]="isAppointmentCreating()"
-        [attr.aria-busy]="isAppointmentCreating()"
+        [attr.aria-busy]="
+          isAppointmentCreating()
+        "
         (click)="createAppointment()">
         @if (isAppointmentCreating()) {
           Creando cita...
