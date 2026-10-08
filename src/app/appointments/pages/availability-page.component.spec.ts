@@ -25,6 +25,11 @@ describe('AvailabilityPageComponent', () => {
     request: UpdateDentistAvailabilityRequest;
   }>;
 
+  let updateAvailabilityResponseFactory: (
+    dentistId: string,
+    request: UpdateDentistAvailabilityRequest,
+  ) => Observable<DentistAvailability>;
+
   const availability: DentistAvailability = {
     id: 'availability-123',
     dentistId: 'dentist-123',
@@ -37,6 +42,18 @@ describe('AvailabilityPageComponent', () => {
     requestedDentistIds = [];
     updatedAvailabilityRequests = [];
     availabilityResponse$ = of(availability);
+
+    updateAvailabilityResponseFactory = (
+      dentistId,
+      request,
+    ) =>
+      of({
+        ...availability,
+        dentistId,
+        intervals: request.intervals,
+        blockedIntervals: request.blockedIntervals,
+        version: request.expectedVersion + 1,
+      });
 
     const api = {
       getDentistAvailability: (dentistId: string) => {
@@ -53,13 +70,10 @@ describe('AvailabilityPageComponent', () => {
           request,
         });
 
-        return of({
-          ...availability,
+        return updateAvailabilityResponseFactory(
           dentistId,
-          intervals: request.intervals,
-          blockedIntervals: request.blockedIntervals,
-          version: request.expectedVersion + 1,
-        });
+          request,
+        );
       },
     } as Pick<
       AppointmentsApiService,
@@ -261,6 +275,41 @@ describe('AvailabilityPageComponent', () => {
         },
       },
     ]);
+  });
+
+  it('disables save while availability update is pending', () => {
+    const updateResponse =
+      new Subject<DentistAvailability>();
+
+    updateAvailabilityResponseFactory = () =>
+      updateResponse;
+
+    availabilityResponse$ = of({
+      ...availability,
+      version: 4,
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const saveButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-save-availability]',
+      );
+
+    expect(saveButton).not.toBeNull();
+    expect(saveButton?.disabled).toBe(false);
+
+    saveButton?.click();
+    fixture.detectChanges();
+
+    expect(updatedAvailabilityRequests).toHaveLength(
+      1,
+    );
+
+    expect(saveButton?.disabled).toBe(true);
   });
 
   it('saves edited shift time using the clinic local date', () => {
