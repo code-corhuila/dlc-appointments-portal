@@ -185,6 +185,10 @@ export function deriveAvailabilitySlotsForDate(
           new Date(slotEnd).toISOString(),
         );
 
+      if (endPoint.date !== clinicDate) {
+        continue;
+      }
+
       slots.push({
         startAt: toClinicOffsetDateTime(
           `${startPoint.date}T${startPoint.time}`,
