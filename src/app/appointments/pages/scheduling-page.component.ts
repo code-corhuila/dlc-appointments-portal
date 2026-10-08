@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,6 +31,9 @@ interface SchedulingDateOption {
 }
 
 const DATE_OPTION_COUNT = 5;
+
+const APPOINTMENT_CONFLICT_MESSAGE =
+  'Ese horario ya no está disponible. Seleccione otro horario.';
 
 @Component({
   selector: 'app-scheduling-page',
@@ -105,6 +109,9 @@ export class SchedulingPageComponent {
 
   readonly isAppointmentCreating =
     signal(false);
+
+  readonly appointmentError =
+    signal<string | null>(null);
 
   protected searchPatients(
     search: string,
@@ -190,6 +197,7 @@ export class SchedulingPageComponent {
     this.patientResults.set([]);
     this.hasCompletedPatientSearch.set(false);
     this.hasPatientSearchError.set(false);
+    this.appointmentError.set(null);
   }
 
   protected selectDentist(
@@ -197,6 +205,8 @@ export class SchedulingPageComponent {
   ): void {
     this.selectedDentistId =
       dentistId || null;
+
+    this.appointmentError.set(null);
 
     this.refreshAvailabilitySlots();
   }
@@ -208,6 +218,8 @@ export class SchedulingPageComponent {
       date || null,
     );
 
+    this.appointmentError.set(null);
+
     this.refreshAvailabilitySlots();
   }
 
@@ -215,6 +227,7 @@ export class SchedulingPageComponent {
     slot: AvailabilitySlot,
   ): void {
     this.selectedSlot.set(slot);
+    this.appointmentError.set(null);
   }
 
   protected setAppointmentReason(
@@ -255,6 +268,7 @@ export class SchedulingPageComponent {
         request,
       );
 
+    this.appointmentError.set(null);
     this.isAppointmentCreating.set(true);
 
     this.api
@@ -274,12 +288,42 @@ export class SchedulingPageComponent {
       )
       .subscribe({
         next: () => undefined,
-        error: () => undefined,
+        error: (error: unknown) => {
+          if (
+            this.isAppointmentConflict(
+              error,
+            )
+          ) {
+            this.appointmentError.set(
+              APPOINTMENT_CONFLICT_MESSAGE,
+            );
+          }
+        },
       });
   }
 
   protected retryAvailability(): void {
     this.refreshAvailabilitySlots();
+  }
+
+  private isAppointmentConflict(
+    error: unknown,
+  ): boolean {
+    if (
+      !(error instanceof HttpErrorResponse)
+    ) {
+      return false;
+    }
+
+    const body = error.error;
+
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      body.error ===
+        'APPOINTMENT_CONFLICT'
+    );
   }
 
   private refreshAvailabilitySlots(): void {
