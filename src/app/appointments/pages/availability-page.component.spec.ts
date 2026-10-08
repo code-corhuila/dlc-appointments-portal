@@ -263,6 +263,76 @@ describe('AvailabilityPageComponent', () => {
     ]);
   });
 
+  it('saves edited shift time using the clinic local date', () => {
+    const loadedAvailability: DentistAvailability = {
+      ...availability,
+      intervals: [
+        {
+          startAt: '2026-10-06T02:30:00Z',
+          endAt: '2026-10-06T03:30:00Z',
+        },
+      ],
+      version: 4,
+    };
+
+    availabilityResponse$ = of(
+      loadedAvailability,
+    );
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const monday =
+      element.querySelector(
+        '[data-day="monday"]',
+      ) as HTMLElement;
+
+    const start =
+      monday.querySelector<HTMLInputElement>(
+        '[data-shift-one-start]',
+      );
+
+    expect(start?.value).toBe('21:30');
+
+    if (start) {
+      start.value = '20:30';
+
+      start.dispatchEvent(
+        new Event('change'),
+      );
+    }
+
+    fixture.detectChanges();
+
+    const saveButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-save-availability]',
+      );
+
+    saveButton?.click();
+    fixture.detectChanges();
+
+    expect(updatedAvailabilityRequests).toEqual([
+      {
+        dentistId: 'dentist-123',
+        request: {
+          intervals: [
+            {
+              startAt:
+                '2026-10-05T20:30:00-05:00',
+              endAt:
+                '2026-10-06T03:30:00Z',
+            },
+          ],
+          blockedIntervals: [],
+          expectedVersion: 4,
+        },
+      },
+    ]);
+  });
+
   it('shows loading and cancels the previous dentist request', () => {
     const firstResponse =
       new Subject<DentistAvailability>();
