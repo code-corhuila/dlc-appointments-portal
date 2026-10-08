@@ -203,6 +203,81 @@ describe('SchedulingPageComponent', () => {
     ).toContain('No se encontraron pacientes activos');
   });
 
+  it('shows an error and retries the patient search', () => {
+    patientSearchResponse = throwError(
+      () => new Error('Patients unavailable'),
+    );
+
+    searchPatient('Ana');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    expect(
+      element.querySelector('[data-patient-error]'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('[data-patient-error]')?.textContent,
+    ).toContain('No fue posible buscar pacientes');
+
+    const retryButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-retry]',
+      );
+
+    expect(retryButton).not.toBeNull();
+    expect(retryButton?.textContent).toContain('Reintentar');
+
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    retryButton?.click();
+    fixture.detectChanges();
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    expect(
+      element.querySelector('[data-patient-error]'),
+    ).toBeNull();
+
+    expect(
+      element.querySelector('[data-patient-result]')?.textContent,
+    ).toContain('Ana Torres');
+  });
+
   it('selects a patient and shows it in the appointment summary', () => {
     patientSearchResponse = of({
       data: [
