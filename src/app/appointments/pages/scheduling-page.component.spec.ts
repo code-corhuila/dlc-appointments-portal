@@ -172,6 +172,37 @@ describe('SchedulingPageComponent', () => {
     ).not.toBeNull();
   });
 
+  it('shows empty feedback when patient search returns no active patients', () => {
+    patientSearchResponse = of({
+      data: [],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+      },
+    });
+
+    searchPatient('Paciente inexistente');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Paciente inexistente',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    expect(
+      element.querySelector('[data-patient-empty]'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('[data-patient-empty]')?.textContent,
+    ).toContain('No se encontraron pacientes activos');
+  });
+
   it('selects a patient and shows it in the appointment summary', () => {
     patientSearchResponse = of({
       data: [
