@@ -239,6 +239,7 @@ import { DentistAvailability } from '../model/availability';
           <button
             type="button"
             data-save-availability
+            [disabled]="availabilitySaving()"
             (click)="saveAvailability()"
           >
             Guardar Configuración Semanal
@@ -290,6 +291,7 @@ export class AvailabilityPageComponent {
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
   protected readonly availabilityLoading = signal(false);
+  protected readonly availabilitySaving = signal(false);
   protected readonly availabilityEmpty = signal(false);
   protected readonly availabilityError =
     signal<ApiError | null>(null);
@@ -371,13 +373,16 @@ export class AvailabilityPageComponent {
   protected saveAvailability(): void {
     if (
       !this.selectedDentistId ||
-      !this.loadedAvailability
+      !this.loadedAvailability ||
+      this.availabilitySaving()
     ) {
       return;
     }
 
     const currentAvailability =
       this.loadedAvailability;
+
+    this.availabilitySaving.set(true);
 
     this.api
       .updateDentistAvailability(
@@ -393,6 +398,9 @@ export class AvailabilityPageComponent {
       )
       .pipe(
         takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.availabilitySaving.set(false);
+        }),
       )
       .subscribe({
         next: (updatedAvailability) => {
