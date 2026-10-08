@@ -92,24 +92,6 @@ import { DentistAvailability } from '../model/availability';
         </div>
       }
 
-      @if (availabilitySaveError(); as saveError) {
-        <div
-          data-availability-save-error
-          role="alert"
-        >
-          <p>{{ saveError.message }}</p>
-        </div>
-      }
-
-      @if (availabilitySaveSuccess()) {
-        <div
-          data-availability-save-success
-          aria-live="polite"
-        >
-          <p>Disponibilidad guardada correctamente.</p>
-        </div>
-      }
-
       <div class="availability-layout">
         <section class="schedule-panel" data-weekly-schedule>
           <header class="panel-header">
@@ -253,15 +235,6 @@ import { DentistAvailability } from '../model/availability';
               </div>
             </article>
           }
-
-          <button
-            type="button"
-            data-save-availability
-            [disabled]="availabilitySaving()"
-            (click)="saveAvailability()"
-          >
-            Guardar Configuración Semanal
-          </button>
         </section>
 
         <aside class="generator-panel">
@@ -309,14 +282,9 @@ export class AvailabilityPageComponent {
   protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
 
   protected readonly availabilityLoading = signal(false);
-  protected readonly availabilitySaving = signal(false);
   protected readonly availabilityEmpty = signal(false);
   protected readonly availabilityError =
     signal<ApiError | null>(null);
-  protected readonly availabilitySaveError =
-    signal<ApiError | null>(null);
-  protected readonly availabilitySaveSuccess =
-    signal(false);
 
   private readonly loadedSchedule =
     signal<WeeklyAvailabilitySchedule>({});
@@ -342,8 +310,6 @@ export class AvailabilityPageComponent {
       this.loadedAvailability = null;
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
-      this.availabilitySaveError.set(null);
-      this.availabilitySaveSuccess.set(false);
       this.availabilityEmpty.set(false);
       this.hasLoadedAvailability.set(false);
       this.loadedSchedule.set({});
@@ -354,8 +320,6 @@ export class AvailabilityPageComponent {
     this.selectedDentistId = dentistId;
     this.loadedAvailability = null;
     this.availabilityError.set(null);
-    this.availabilitySaveError.set(null);
-    this.availabilitySaveSuccess.set(false);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
     this.hasLoadedAvailability.set(false);
@@ -394,62 +358,6 @@ export class AvailabilityPageComponent {
     this.loadAvailability(
       this.selectedDentistId,
     );
-  }
-
-  protected saveAvailability(): void {
-    if (
-      !this.selectedDentistId ||
-      !this.loadedAvailability ||
-      this.availabilitySaving()
-    ) {
-      return;
-    }
-
-    const currentAvailability =
-      this.loadedAvailability;
-
-    this.availabilitySaveError.set(null);
-    this.availabilitySaveSuccess.set(false);
-    this.availabilitySaving.set(true);
-
-    this.api
-      .updateDentistAvailability(
-        this.selectedDentistId,
-        {
-          intervals:
-            currentAvailability.intervals,
-          blockedIntervals:
-            currentAvailability.blockedIntervals,
-          expectedVersion:
-            currentAvailability.version,
-        },
-      )
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        finalize(() => {
-          this.availabilitySaving.set(false);
-        }),
-      )
-      .subscribe({
-        next: (updatedAvailability) => {
-          this.loadedAvailability =
-            updatedAvailability;
-
-          this.applyAvailability(
-            updatedAvailability,
-          );
-
-          this.availabilityEmpty.set(
-            updatedAvailability.intervals.length === 0,
-          );
-
-          this.availabilitySaveSuccess.set(true);
-        },
-        error: (error: ApiError) => {
-          this.availabilitySaveSuccess.set(false);
-          this.availabilitySaveError.set(error);
-        },
-      });
   }
 
   protected updateShiftTime(
