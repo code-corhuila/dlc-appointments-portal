@@ -101,6 +101,15 @@ import { DentistAvailability } from '../model/availability';
         </div>
       }
 
+      @if (availabilitySaveSuccess()) {
+        <div
+          data-availability-save-success
+          aria-live="polite"
+        >
+          <p>Disponibilidad guardada correctamente.</p>
+        </div>
+      }
+
       <div class="availability-layout">
         <section class="schedule-panel" data-weekly-schedule>
           <header class="panel-header">
@@ -306,6 +315,8 @@ export class AvailabilityPageComponent {
     signal<ApiError | null>(null);
   protected readonly availabilitySaveError =
     signal<ApiError | null>(null);
+  protected readonly availabilitySaveSuccess =
+    signal(false);
 
   private readonly loadedSchedule =
     signal<WeeklyAvailabilitySchedule>({});
@@ -332,6 +343,7 @@ export class AvailabilityPageComponent {
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
       this.availabilitySaveError.set(null);
+      this.availabilitySaveSuccess.set(false);
       this.availabilityEmpty.set(false);
       this.hasLoadedAvailability.set(false);
       this.loadedSchedule.set({});
@@ -343,6 +355,7 @@ export class AvailabilityPageComponent {
     this.loadedAvailability = null;
     this.availabilityError.set(null);
     this.availabilitySaveError.set(null);
+    this.availabilitySaveSuccess.set(false);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
     this.hasLoadedAvailability.set(false);
@@ -396,6 +409,7 @@ export class AvailabilityPageComponent {
       this.loadedAvailability;
 
     this.availabilitySaveError.set(null);
+    this.availabilitySaveSuccess.set(false);
     this.availabilitySaving.set(true);
 
     this.api
@@ -428,8 +442,11 @@ export class AvailabilityPageComponent {
           this.availabilityEmpty.set(
             updatedAvailability.intervals.length === 0,
           );
+
+          this.availabilitySaveSuccess.set(true);
         },
         error: (error: ApiError) => {
+          this.availabilitySaveSuccess.set(false);
           this.availabilitySaveError.set(error);
         },
       });
