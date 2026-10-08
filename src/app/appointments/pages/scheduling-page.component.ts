@@ -35,6 +35,15 @@ const DATE_OPTION_COUNT = 5;
 const APPOINTMENT_CONFLICT_MESSAGE =
   'Ese horario ya no está disponible. Seleccione otro horario.';
 
+const APPOINTMENT_VALIDATION_MESSAGE =
+  'Los datos de la cita no son válidos. Revise la información e intente nuevamente.';
+
+const APPOINTMENT_FORBIDDEN_MESSAGE =
+  'No tiene permisos para agendar esta cita.';
+
+const APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE =
+  'El servicio de citas no está disponible en este momento. Intente nuevamente.';
+
 const APPOINTMENT_SUCCESS_MESSAGE =
   'Cita agendada correctamente.';
 
@@ -305,14 +314,35 @@ export class SchedulingPageComponent {
         error: (error: unknown) => {
           this.appointmentSuccess.set(null);
 
-          if (
-            this.isAppointmentConflict(
+          const errorCode =
+            this.appointmentErrorCode(
               error,
-            )
-          ) {
-            this.appointmentError.set(
-              APPOINTMENT_CONFLICT_MESSAGE,
             );
+
+          switch (errorCode) {
+            case 'APPOINTMENT_CONFLICT':
+              this.appointmentError.set(
+                APPOINTMENT_CONFLICT_MESSAGE,
+              );
+              break;
+
+            case 'VALIDATION_ERROR':
+              this.appointmentError.set(
+                APPOINTMENT_VALIDATION_MESSAGE,
+              );
+              break;
+
+            case 'FORBIDDEN':
+              this.appointmentError.set(
+                APPOINTMENT_FORBIDDEN_MESSAGE,
+              );
+              break;
+
+            case 'SERVICE_UNAVAILABLE':
+              this.appointmentError.set(
+                APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE,
+              );
+              break;
           }
         },
       });
@@ -327,24 +357,27 @@ export class SchedulingPageComponent {
     this.appointmentSuccess.set(null);
   }
 
-  private isAppointmentConflict(
+  private appointmentErrorCode(
     error: unknown,
-  ): boolean {
+  ): string | null {
     if (
       !(error instanceof HttpErrorResponse)
     ) {
-      return false;
+      return null;
     }
 
     const body = error.error;
 
-    return (
-      typeof body === 'object' &&
-      body !== null &&
-      'error' in body &&
-      body.error ===
-        'APPOINTMENT_CONFLICT'
-    );
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('error' in body) ||
+      typeof body.error !== 'string'
+    ) {
+      return null;
+    }
+
+    return body.error;
   }
 
   private refreshAvailabilitySlots(): void {
