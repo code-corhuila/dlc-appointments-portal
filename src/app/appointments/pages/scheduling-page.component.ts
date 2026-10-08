@@ -41,6 +41,9 @@ const APPOINTMENT_VALIDATION_MESSAGE =
 const APPOINTMENT_FORBIDDEN_MESSAGE =
   'No tiene permisos para agendar esta cita.';
 
+const APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE =
+  'El servicio de citas no está disponible en este momento. Intente nuevamente.';
+
 const APPOINTMENT_SUCCESS_MESSAGE =
   'Cita agendada correctamente.';
 
@@ -343,6 +346,18 @@ export class SchedulingPageComponent {
             this.appointmentError.set(
               APPOINTMENT_FORBIDDEN_MESSAGE,
             );
+
+            return;
+          }
+
+          if (
+            this.isAppointmentServiceUnavailable(
+              error,
+            )
+          ) {
+            this.appointmentError.set(
+              APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE,
+            );
           }
         },
       });
@@ -414,6 +429,26 @@ export class SchedulingPageComponent {
       'error' in body &&
       body.error ===
         'FORBIDDEN'
+    );
+  }
+
+  private isAppointmentServiceUnavailable(
+    error: unknown,
+  ): boolean {
+    if (
+      !(error instanceof HttpErrorResponse)
+    ) {
+      return false;
+    }
+
+    const body = error.error;
+
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      body.error ===
+        'SERVICE_UNAVAILABLE'
     );
   }
 
