@@ -68,6 +68,9 @@ export class SchedulingPageComponent {
   readonly hasLoadedAvailability =
     signal(false);
 
+  readonly hasAvailabilityError =
+    signal(false);
+
   protected selectDentist(
     dentistId: string,
   ): void {
@@ -93,11 +96,16 @@ export class SchedulingPageComponent {
     this.selectedSlot.set(slot);
   }
 
+  protected retryAvailability(): void {
+    this.refreshAvailabilitySlots();
+  }
+
   private refreshAvailabilitySlots(): void {
     this.availabilityRequest?.unsubscribe();
 
     this.isAvailabilityLoading.set(false);
     this.hasLoadedAvailability.set(false);
+    this.hasAvailabilityError.set(false);
     this.availableSlots.set([]);
     this.selectedSlot.set(null);
 
@@ -144,12 +152,21 @@ export class SchedulingPageComponent {
             this.hasLoadedAvailability.set(
               true,
             );
+
+            this.hasAvailabilityError.set(
+              false,
+            );
           },
           error: () => {
             this.availableSlots.set([]);
             this.selectedSlot.set(null);
+
             this.hasLoadedAvailability.set(
               false,
+            );
+
+            this.hasAvailabilityError.set(
+              true,
             );
           },
         });

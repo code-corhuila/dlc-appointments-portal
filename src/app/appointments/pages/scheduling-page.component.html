@@ -83,6 +83,19 @@
             <p class="slot-placeholder" data-availability-loading>
               Consultando horarios disponibles...
             </p>
+          } @else if (hasAvailabilityError()) {
+            <div data-availability-error>
+              <p class="slot-placeholder">
+                No fue posible consultar los horarios disponibles.
+              </p>
+              <button
+                type="button"
+                class="secondary-action"
+                data-availability-retry
+                (click)="retryAvailability()">
+                Reintentar
+              </button>
+            </div>
           } @else if (hasLoadedAvailability() && availableSlots().length === 0) {
             <p class="slot-placeholder" data-availability-empty>
               No hay horarios disponibles para la fecha seleccionada.
