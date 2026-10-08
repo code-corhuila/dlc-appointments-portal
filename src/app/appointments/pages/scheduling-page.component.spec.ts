@@ -651,6 +651,93 @@ describe('SchedulingPageComponent', () => {
     expect(appointmentCreations).toHaveLength(1);
   });
 
+  it('shows successful appointment creation feedback', () => {
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector(
+        '[data-appointment-success]',
+      ),
+    ).toBeNull();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    const feedback =
+      element.querySelector(
+        '[data-appointment-success]',
+      );
+
+    expect(feedback).not.toBeNull();
+
+    expect(
+      feedback?.textContent,
+    ).toContain(
+      'Cita agendada correctamente.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-appointment-error]',
+      ),
+    ).toBeNull();
+  });
+
   it('shows appointment conflict feedback when the selected slot is no longer available', () => {
     appointmentCreationResponse = throwError(
       () =>
