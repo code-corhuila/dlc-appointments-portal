@@ -24,6 +24,12 @@ export interface AvailabilityShift {
   readonly end: string;
 }
 
+export interface AvailabilitySlot {
+  readonly startAt: string;
+  readonly endAt: string;
+  readonly label: string;
+}
+
 const WEEK_DAYS = [
   ['monday', 'Lunes'],
   ['tuesday', 'Martes'],
@@ -117,6 +123,72 @@ export function mapAvailabilityIntervalsToWeek(
   }
 
   return schedule;
+}
+
+export function deriveAvailabilitySlotsForDate(
+  intervals: readonly AvailabilityInterval[],
+  clinicDate: string,
+  durationMinutes = DEFAULT_SLOT_DURATION_MINUTES,
+): readonly AvailabilitySlot[] {
+  const durationMilliseconds =
+    durationMinutes * 60 * 1000;
+
+  const slots: AvailabilitySlot[] = [];
+
+  for (const interval of intervals) {
+    const startInstant =
+      new Date(interval.startAt);
+
+    const endInstant =
+      new Date(interval.endAt);
+
+    if (
+      Number.isNaN(startInstant.getTime()) ||
+      Number.isNaN(endInstant.getTime())
+    ) {
+      throw new Error(
+        'Invalid availability interval date-time',
+      );
+    }
+
+    for (
+      let slotStart = startInstant.getTime();
+      slotStart + durationMilliseconds <=
+      endInstant.getTime();
+      slotStart += durationMilliseconds
+    ) {
+      const slotEnd =
+        slotStart + durationMilliseconds;
+
+      const startPoint =
+        toClinicSchedulePoint(
+          new Date(slotStart).toISOString(),
+        );
+
+      if (startPoint.date !== clinicDate) {
+        continue;
+      }
+
+      const endPoint =
+        toClinicSchedulePoint(
+          new Date(slotEnd).toISOString(),
+        );
+
+      slots.push({
+        startAt: toClinicOffsetDateTime(
+          `${startPoint.date}T${startPoint.time}`,
+        ),
+        endAt: toClinicOffsetDateTime(
+          `${endPoint.date}T${endPoint.time}`,
+        ),
+        label: startPoint.time,
+      });
+    }
+  }
+
+  return slots.sort((left, right) =>
+    left.startAt.localeCompare(right.startAt),
+  );
 }
 
 export function updateAvailabilityIntervalTime(
