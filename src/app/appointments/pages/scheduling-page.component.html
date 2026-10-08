@@ -40,6 +40,20 @@
             data-patient-loading>
             Buscando pacientes...
           </p>
+        } @else if (hasPatientSearchError()) {
+          <div data-patient-error>
+            <p class="slot-placeholder">
+              No fue posible buscar pacientes.
+            </p>
+
+            <button
+              type="button"
+              class="secondary-action"
+              data-patient-retry
+              (click)="retryPatientSearch()">
+              Reintentar
+            </button>
+          </div>
         } @else if (
           hasCompletedPatientSearch() &&
           patientResults().length === 0
