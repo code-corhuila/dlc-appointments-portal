@@ -12,11 +12,13 @@ import {
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { PatientsLookupService } from '../data/patients-lookup.service';
 import {
   AvailabilitySlot,
   deriveAvailabilitySlotsForDate,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
+import { PatientView } from '../model/patient';
 
 interface SchedulingDateOption {
   readonly value: string;
@@ -38,10 +40,14 @@ export class SchedulingPageComponent {
   private readonly api =
     inject(AppointmentsApiService);
 
+  private readonly patients =
+    inject(PatientsLookupService);
+
   private readonly destroyRef =
     inject(DestroyRef);
 
   private availabilityRequest?: Subscription;
+  private patientSearchRequest?: Subscription;
 
   private selectedDentistId:
     | string
@@ -52,6 +58,9 @@ export class SchedulingPageComponent {
 
   protected readonly dateOptions =
     buildUpcomingDateOptions();
+
+  readonly patientResults =
+    signal<readonly PatientView[]>([]);
 
   readonly selectedDate =
     signal<string | null>(null);
@@ -70,6 +79,43 @@ export class SchedulingPageComponent {
 
   readonly hasAvailabilityError =
     signal(false);
+
+  protected searchPatients(
+    search: string,
+  ): void {
+    this.patientSearchRequest?.unsubscribe();
+
+    this.patientResults.set([]);
+
+    const normalizedSearch =
+      search.trim();
+
+    if (!normalizedSearch) {
+      return;
+    }
+
+    this.patientSearchRequest =
+      this.patients
+        .searchPatients({
+          search: normalizedSearch,
+          status: 'ACTIVE',
+        })
+        .pipe(
+          takeUntilDestroyed(
+            this.destroyRef,
+          ),
+        )
+        .subscribe({
+          next: (page) => {
+            this.patientResults.set(
+              page.data,
+            );
+          },
+          error: () => {
+            this.patientResults.set([]);
+          },
+        });
+  }
 
   protected selectDentist(
     dentistId: string,
