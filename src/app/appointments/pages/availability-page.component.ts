@@ -12,9 +12,11 @@ import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
   AvailabilityDayDefaults,
   AvailabilityDayKey,
+  AvailabilityTimeField,
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
   mapAvailabilityIntervalsToWeek,
+  updateAvailabilityIntervalTime,
   WeeklyAvailabilitySchedule,
 } from '../domain/availability-schedule';
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
@@ -128,6 +130,14 @@ import { DentistAvailability } from '../model/availability';
                   [value]="shiftStart(day, 0)"
                   data-shift-one-start
                   [disabled]="!isDayEnabled(day.key)"
+                  (change)="
+                    updateShiftTime(
+                      day.key,
+                      0,
+                      'startAt',
+                      $any($event.target).value
+                    )
+                  "
                 />
 
                 <label [for]="day.key + '-shift-one-end'">
@@ -140,6 +150,14 @@ import { DentistAvailability } from '../model/availability';
                   [value]="shiftEnd(day, 0)"
                   data-shift-one-end
                   [disabled]="!isDayEnabled(day.key)"
+                  (change)="
+                    updateShiftTime(
+                      day.key,
+                      0,
+                      'endAt',
+                      $any($event.target).value
+                    )
+                  "
                 />
               </div>
 
@@ -169,6 +187,14 @@ import { DentistAvailability } from '../model/availability';
                   [value]="shiftStart(day, 1)"
                   data-shift-two-start
                   [disabled]="!isDayEnabled(day.key)"
+                  (change)="
+                    updateShiftTime(
+                      day.key,
+                      1,
+                      'startAt',
+                      $any($event.target).value
+                    )
+                  "
                 />
 
                 <label [for]="day.key + '-shift-two-end'">
@@ -181,6 +207,14 @@ import { DentistAvailability } from '../model/availability';
                   [value]="shiftEnd(day, 1)"
                   data-shift-two-end
                   [disabled]="!isDayEnabled(day.key)"
+                  (change)="
+                    updateShiftTime(
+                      day.key,
+                      1,
+                      'endAt',
+                      $any($event.target).value
+                    )
+                  "
                 />
               </div>
 
@@ -201,6 +235,14 @@ import { DentistAvailability } from '../model/availability';
               </div>
             </article>
           }
+
+          <button
+            type="button"
+            data-save-availability
+            (click)="saveAvailability()"
+          >
+            Guardar Configuración Semanal
+          </button>
         </section>
 
         <aside class="generator-panel">
@@ -240,6 +282,7 @@ export class AvailabilityPageComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   private availabilityRequest?: Subscription;
+  private loadedAvailability: DentistAvailability | null = null;
 
   protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
   protected readonly slotDurationMinutes =
@@ -272,6 +315,7 @@ export class AvailabilityPageComponent {
 
     if (!dentistId) {
       this.selectedDentistId = null;
+      this.loadedAvailability = null;
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
       this.availabilityEmpty.set(false);
@@ -282,6 +326,7 @@ export class AvailabilityPageComponent {
     }
 
     this.selectedDentistId = dentistId;
+    this.loadedAvailability = null;
     this.availabilityError.set(null);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
@@ -298,6 +343,7 @@ export class AvailabilityPageComponent {
       )
       .subscribe({
         next: (availability) => {
+          this.loadedAvailability = availability;
           this.applyAvailability(availability);
 
           this.availabilityEmpty.set(
@@ -305,6 +351,7 @@ export class AvailabilityPageComponent {
           );
         },
         error: (error: ApiError) => {
+          this.loadedAvailability = null;
           this.availabilityEmpty.set(false);
           this.availabilityError.set(error);
         },
@@ -318,6 +365,79 @@ export class AvailabilityPageComponent {
 
     this.loadAvailability(
       this.selectedDentistId,
+    );
+  }
+
+  protected saveAvailability(): void {
+    if (
+      !this.selectedDentistId ||
+      !this.loadedAvailability
+    ) {
+      return;
+    }
+
+    const currentAvailability =
+      this.loadedAvailability;
+
+    this.api
+      .updateDentistAvailability(
+        this.selectedDentistId,
+        {
+          intervals:
+            currentAvailability.intervals,
+          blockedIntervals:
+            currentAvailability.blockedIntervals,
+          expectedVersion:
+            currentAvailability.version,
+        },
+      )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (updatedAvailability) => {
+          this.loadedAvailability =
+            updatedAvailability;
+
+          this.applyAvailability(
+            updatedAvailability,
+          );
+
+          this.availabilityEmpty.set(
+            updatedAvailability.intervals.length === 0,
+          );
+        },
+      });
+  }
+
+  protected updateShiftTime(
+    dayKey: string,
+    shiftIndex: number,
+    field: AvailabilityTimeField,
+    time: string,
+  ): void {
+    if (!this.loadedAvailability) {
+      return;
+    }
+
+    const intervals =
+      updateAvailabilityIntervalTime(
+        this.loadedAvailability.intervals,
+        dayKey as AvailabilityDayKey,
+        shiftIndex,
+        field,
+        time,
+      );
+
+    this.loadedAvailability = {
+      ...this.loadedAvailability,
+      intervals,
+    };
+
+    this.loadedSchedule.set(
+      mapAvailabilityIntervalsToWeek(
+        intervals,
+      ),
     );
   }
 

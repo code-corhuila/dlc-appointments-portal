@@ -1,5 +1,8 @@
 import { AvailabilityInterval } from '../model/availability';
-import { CLINIC_TIME_ZONE } from './clinic-time';
+import {
+  CLINIC_TIME_ZONE,
+  toClinicOffsetDateTime,
+} from './clinic-time';
 
 export interface AvailabilityDayDefaults {
   readonly key: string;
@@ -41,6 +44,10 @@ export type WeeklyAvailabilitySchedule = Readonly<
   >
 >;
 
+export type AvailabilityTimeField =
+  | 'startAt'
+  | 'endAt';
+
 const SUPPORTED_WEEK_DAYS: readonly AvailabilityDayKey[] =
   WEEK_DAYS.map(([key]) => key);
 
@@ -48,6 +55,9 @@ const CLINIC_DATE_TIME_FORMATTER =
   new Intl.DateTimeFormat('en-US', {
     timeZone: CLINIC_TIME_ZONE,
     weekday: 'long',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -109,10 +119,61 @@ export function mapAvailabilityIntervalsToWeek(
   return schedule;
 }
 
+export function updateAvailabilityIntervalTime(
+  intervals: readonly AvailabilityInterval[],
+  dayKey: AvailabilityDayKey,
+  shiftIndex: number,
+  field: AvailabilityTimeField,
+  time: string,
+): readonly AvailabilityInterval[] {
+  const matchingIndexes = intervals
+    .map((interval, index) => ({
+      index,
+      point: toClinicSchedulePoint(
+        interval.startAt,
+      ),
+    }))
+    .filter(
+      ({ point }) =>
+        point.dayKey === dayKey,
+    )
+    .sort((left, right) =>
+      left.point.time.localeCompare(
+        right.point.time,
+      ),
+    );
+
+  const target =
+    matchingIndexes[shiftIndex];
+
+  if (!target) {
+    return intervals;
+  }
+
+  return intervals.map((interval, index) => {
+    if (index !== target.index) {
+      return interval;
+    }
+
+    const localDate =
+      toClinicSchedulePoint(
+        interval[field],
+      ).date;
+
+    return {
+      ...interval,
+      [field]: toClinicOffsetDateTime(
+        `${localDate}T${time}`,
+      ),
+    };
+  });
+}
+
 function toClinicSchedulePoint(
   value: string,
 ): {
   readonly dayKey: string;
+  readonly date: string;
   readonly time: string;
 } {
   const instant = new Date(value);
@@ -134,7 +195,10 @@ function toClinicSchedulePoint(
 
   return {
     dayKey: parts['weekday'].toLowerCase(),
-    time: `${parts['hour']}:${parts['minute']}`,
+    date:
+      `${parts['year']}-${parts['month']}-${parts['day']}`,
+    time:
+      `${parts['hour']}:${parts['minute']}`,
   };
 }
 
