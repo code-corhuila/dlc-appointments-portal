@@ -172,6 +172,38 @@ describe('SchedulingPageComponent', () => {
     ).toBe(2);
   });
 
+  it('handles malformed availability data without breaking the page', () => {
+    availabilityResponse = of({
+      ...availability,
+      intervals: [
+        {
+          startAt: 'invalid-date-time',
+          endAt: '2026-10-05T15:00:00Z',
+        },
+      ],
+    });
+
+    selectDentist('dentist-123');
+
+    expect(
+      () => selectDate('2026-10-05'),
+    ).not.toThrow();
+
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(requestedDentistIds).toEqual(['dentist-123']);
+
+    expect(
+      element.querySelectorAll('[data-available-slot]').length,
+    ).toBe(0);
+
+    expect(
+      element.querySelector('[data-availability-error]'),
+    ).not.toBeNull();
+  });
+
   it('loads dentist availability and renders slots for the selected date', () => {
     selectDentist('dentist-123');
     selectDate('2026-10-05');
