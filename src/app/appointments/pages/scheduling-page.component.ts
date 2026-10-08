@@ -314,50 +314,35 @@ export class SchedulingPageComponent {
         error: (error: unknown) => {
           this.appointmentSuccess.set(null);
 
-          if (
-            this.isAppointmentConflict(
+          const errorCode =
+            this.appointmentErrorCode(
               error,
-            )
-          ) {
-            this.appointmentError.set(
-              APPOINTMENT_CONFLICT_MESSAGE,
             );
 
-            return;
-          }
+          switch (errorCode) {
+            case 'APPOINTMENT_CONFLICT':
+              this.appointmentError.set(
+                APPOINTMENT_CONFLICT_MESSAGE,
+              );
+              break;
 
-          if (
-            this.isAppointmentValidationError(
-              error,
-            )
-          ) {
-            this.appointmentError.set(
-              APPOINTMENT_VALIDATION_MESSAGE,
-            );
+            case 'VALIDATION_ERROR':
+              this.appointmentError.set(
+                APPOINTMENT_VALIDATION_MESSAGE,
+              );
+              break;
 
-            return;
-          }
+            case 'FORBIDDEN':
+              this.appointmentError.set(
+                APPOINTMENT_FORBIDDEN_MESSAGE,
+              );
+              break;
 
-          if (
-            this.isAppointmentForbidden(
-              error,
-            )
-          ) {
-            this.appointmentError.set(
-              APPOINTMENT_FORBIDDEN_MESSAGE,
-            );
-
-            return;
-          }
-
-          if (
-            this.isAppointmentServiceUnavailable(
-              error,
-            )
-          ) {
-            this.appointmentError.set(
-              APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE,
-            );
+            case 'SERVICE_UNAVAILABLE':
+              this.appointmentError.set(
+                APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE,
+              );
+              break;
           }
         },
       });
@@ -372,84 +357,27 @@ export class SchedulingPageComponent {
     this.appointmentSuccess.set(null);
   }
 
-  private isAppointmentConflict(
+  private appointmentErrorCode(
     error: unknown,
-  ): boolean {
+  ): string | null {
     if (
       !(error instanceof HttpErrorResponse)
     ) {
-      return false;
+      return null;
     }
 
     const body = error.error;
 
-    return (
-      typeof body === 'object' &&
-      body !== null &&
-      'error' in body &&
-      body.error ===
-        'APPOINTMENT_CONFLICT'
-    );
-  }
-
-  private isAppointmentValidationError(
-    error: unknown,
-  ): boolean {
     if (
-      !(error instanceof HttpErrorResponse)
+      typeof body !== 'object' ||
+      body === null ||
+      !('error' in body) ||
+      typeof body.error !== 'string'
     ) {
-      return false;
+      return null;
     }
 
-    const body = error.error;
-
-    return (
-      typeof body === 'object' &&
-      body !== null &&
-      'error' in body &&
-      body.error ===
-        'VALIDATION_ERROR'
-    );
-  }
-
-  private isAppointmentForbidden(
-    error: unknown,
-  ): boolean {
-    if (
-      !(error instanceof HttpErrorResponse)
-    ) {
-      return false;
-    }
-
-    const body = error.error;
-
-    return (
-      typeof body === 'object' &&
-      body !== null &&
-      'error' in body &&
-      body.error ===
-        'FORBIDDEN'
-    );
-  }
-
-  private isAppointmentServiceUnavailable(
-    error: unknown,
-  ): boolean {
-    if (
-      !(error instanceof HttpErrorResponse)
-    ) {
-      return false;
-    }
-
-    const body = error.error;
-
-    return (
-      typeof body === 'object' &&
-      body !== null &&
-      'error' in body &&
-      body.error ===
-        'SERVICE_UNAVAILABLE'
-    );
+    return body.error;
   }
 
   private refreshAvailabilitySlots(): void {
