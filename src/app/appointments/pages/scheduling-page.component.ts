@@ -62,6 +62,9 @@ export class SchedulingPageComponent {
   readonly patientResults =
     signal<readonly PatientView[]>([]);
 
+  readonly selectedPatient =
+    signal<PatientView | null>(null);
+
   readonly selectedDate =
     signal<string | null>(null);
 
@@ -115,6 +118,13 @@ export class SchedulingPageComponent {
             this.patientResults.set([]);
           },
         });
+  }
+
+  protected selectPatient(
+    patient: PatientView,
+  ): void {
+    this.selectedPatient.set(patient);
+    this.patientResults.set([]);
   }
 
   protected selectDentist(

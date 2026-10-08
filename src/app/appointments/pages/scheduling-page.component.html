@@ -35,9 +35,15 @@
         </div>
 
         @if (patientResults().length > 0) {
-          <div class="patient-results">
+          <div
+            class="patient-results"
+            aria-label="Resultados de pacientes">
             @for (patient of patientResults(); track patient.id) {
-              <div data-patient-result>
+              <button
+                type="button"
+                class="patient-result"
+                data-patient-result
+                (click)="selectPatient(patient)">
                 <strong>{{ patient.name }}</strong>
 
                 @if (patient.documentNumber) {
@@ -50,7 +56,7 @@
                 @if (patient.phone) {
                   <span>{{ patient.phone }}</span>
                 }
-              </div>
+              </button>
             }
           </div>
         }
@@ -258,7 +264,14 @@
 
       <div class="summary-row">
         <span>Paciente</span>
-        <strong>No seleccionado</strong>
+
+        <strong data-selected-patient>
+          @if (selectedPatient()) {
+            {{ selectedPatient()?.name }}
+          } @else {
+            No seleccionado
+          }
+        </strong>
       </div>
 
       <div class="summary-row">
