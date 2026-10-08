@@ -332,6 +332,15 @@
         <strong>No seleccionado</strong>
       </div>
 
+      @if (appointmentError()) {
+        <p
+          class="slot-placeholder"
+          data-appointment-error
+          role="alert">
+          {{ appointmentError() }}
+        </p>
+      }
+
       <button
         type="button"
         data-confirm-appointment
