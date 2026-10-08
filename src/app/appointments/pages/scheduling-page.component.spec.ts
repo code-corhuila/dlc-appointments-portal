@@ -7,13 +7,22 @@ import {
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { PatientsLookupService } from '../data/patients-lookup.service';
 import { DentistAvailability } from '../model/availability';
+import { Page } from '../model/page';
+import {
+  PatientLookupQuery,
+  PatientView,
+} from '../model/patient';
 import { SchedulingPageComponent } from './scheduling-page.component';
 
 describe('SchedulingPageComponent', () => {
   let fixture: ComponentFixture<SchedulingPageComponent>;
   let requestedDentistIds: string[];
   let availabilityResponse: Observable<DentistAvailability>;
+
+  let patientSearches: PatientLookupQuery[];
+  let patientSearchResponse: Observable<Page<PatientView>>;
 
   const availability: DentistAvailability = {
     id: 'availability-123',
@@ -32,6 +41,17 @@ describe('SchedulingPageComponent', () => {
     requestedDentistIds = [];
     availabilityResponse = of(availability);
 
+    patientSearches = [];
+    patientSearchResponse = of({
+      data: [],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0,
+      },
+    });
+
     await TestBed.configureTestingModule({
       imports: [SchedulingPageComponent],
       providers: [
@@ -41,6 +61,15 @@ describe('SchedulingPageComponent', () => {
             getDentistAvailability: (dentistId: string) => {
               requestedDentistIds.push(dentistId);
               return availabilityResponse;
+            },
+          },
+        },
+        {
+          provide: PatientsLookupService,
+          useValue: {
+            searchPatients: (query: PatientLookupQuery) => {
+              patientSearches.push(query);
+              return patientSearchResponse;
             },
           },
         },
@@ -78,6 +107,47 @@ describe('SchedulingPageComponent', () => {
     expect(
       element.querySelector('#dentist'),
     ).not.toBeNull();
+  });
+
+  it('searches active patients and renders matching results', () => {
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    const result = element.querySelector(
+      '[data-patient-result]',
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.textContent).toContain('Ana Torres');
+    expect(result?.textContent).toContain('123456789');
   });
 
   it('shows clinic timezone without invented slots initially', () => {
@@ -326,6 +396,24 @@ describe('SchedulingPageComponent', () => {
     expect(button).not.toBeNull();
     expect(button?.textContent).toContain('Confirmar Cita');
   });
+
+  function searchPatient(search: string): void {
+    const element = fixture.nativeElement as HTMLElement;
+
+    const input =
+      element.querySelector<HTMLInputElement>(
+        '#patient-search',
+      );
+
+    expect(input).not.toBeNull();
+
+    if (input) {
+      input.value = search;
+      input.dispatchEvent(new Event('input'));
+    }
+
+    fixture.detectChanges();
+  }
 
   function selectDentist(dentistId: string): void {
     const element = fixture.nativeElement as HTMLElement;
