@@ -92,6 +92,15 @@ import { DentistAvailability } from '../model/availability';
         </div>
       }
 
+      @if (availabilitySaveError(); as saveError) {
+        <div
+          data-availability-save-error
+          role="alert"
+        >
+          <p>{{ saveError.message }}</p>
+        </div>
+      }
+
       <div class="availability-layout">
         <section class="schedule-panel" data-weekly-schedule>
           <header class="panel-header">
@@ -295,6 +304,8 @@ export class AvailabilityPageComponent {
   protected readonly availabilityEmpty = signal(false);
   protected readonly availabilityError =
     signal<ApiError | null>(null);
+  protected readonly availabilitySaveError =
+    signal<ApiError | null>(null);
 
   private readonly loadedSchedule =
     signal<WeeklyAvailabilitySchedule>({});
@@ -320,6 +331,7 @@ export class AvailabilityPageComponent {
       this.loadedAvailability = null;
       this.availabilityLoading.set(false);
       this.availabilityError.set(null);
+      this.availabilitySaveError.set(null);
       this.availabilityEmpty.set(false);
       this.hasLoadedAvailability.set(false);
       this.loadedSchedule.set({});
@@ -330,6 +342,7 @@ export class AvailabilityPageComponent {
     this.selectedDentistId = dentistId;
     this.loadedAvailability = null;
     this.availabilityError.set(null);
+    this.availabilitySaveError.set(null);
     this.availabilityEmpty.set(false);
     this.availabilityLoading.set(true);
     this.hasLoadedAvailability.set(false);
@@ -382,6 +395,7 @@ export class AvailabilityPageComponent {
     const currentAvailability =
       this.loadedAvailability;
 
+    this.availabilitySaveError.set(null);
     this.availabilitySaving.set(true);
 
     this.api
@@ -414,6 +428,9 @@ export class AvailabilityPageComponent {
           this.availabilityEmpty.set(
             updatedAvailability.intervals.length === 0,
           );
+        },
+        error: (error: ApiError) => {
+          this.availabilitySaveError.set(error);
         },
       });
   }
