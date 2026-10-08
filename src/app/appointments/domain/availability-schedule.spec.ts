@@ -138,4 +138,18 @@ describe('availability schedule defaults', () => {
       },
     ]);
   });
+
+  it('excludes slots that end outside the selected clinic date', () => {
+    const slots = deriveAvailabilitySlotsForDate(
+      [
+        {
+          startAt: '2026-10-06T04:30:00Z',
+          endAt: '2026-10-06T05:30:00Z',
+        },
+      ],
+      '2026-10-05',
+    );
+
+    expect(slots).toEqual([]);
+  });
 });
