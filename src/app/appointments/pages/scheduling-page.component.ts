@@ -1,8 +1,19 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription } from 'rxjs';
+
+import { AppointmentsApiService } from '../data/appointments-api.service';
+import {
+  AvailabilitySlot,
+  deriveAvailabilitySlotsForDate,
+} from '../domain/availability-schedule';
+import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 
 @Component({
   selector: 'app-scheduling-page',
@@ -42,26 +53,37 @@ import {
         <input
           id="appointment-date"
           type="date"
+          (change)="
+            selectDate(
+              $any($event.target).value
+            )
+          "
         />
 
         <h3>Horarios disponibles</h3>
 
         <div>
-          @for (slot of availableSlots; track slot) {
+          @for (
+            slot of availableSlots();
+            track slot.startAt
+          ) {
             <button
               type="button"
               data-available-slot
-              [attr.aria-pressed]="selectedSlot() === slot"
+              [attr.aria-pressed]="
+                selectedSlot()?.startAt ===
+                slot.startAt
+              "
               (click)="selectSlot(slot)"
             >
-              {{ slot }}
+              {{ slot.label }}
             </button>
           }
         </div>
 
         <p>
           Zona horaria:
-          <strong>America/Bogota</strong>
+          <strong>{{ clinicTimeZone }}</strong>
         </p>
       </section>
 
@@ -72,7 +94,14 @@ import {
           Seleccionar odontólogo
         </label>
 
-        <select id="dentist">
+        <select
+          id="dentist"
+          (change)="
+            selectDentist(
+              $any($event.target).value
+            )
+          "
+        >
           <option value="">
             Seleccione un odontólogo
           </option>
@@ -100,7 +129,10 @@ import {
 
         <p data-selected-slot>
           Fecha y hora:
-          {{ selectedSlot() ?? 'No seleccionada' }}
+          {{
+            selectedSlot()?.label ??
+              'No seleccionada'
+          }}
         </p>
 
         <button
@@ -114,18 +146,97 @@ import {
   `,
 })
 export class SchedulingPageComponent {
-  // TODO(dlc-docs#54): Replace presentation slots with dentist availability-derived slots in the next HU-APT-001 slice.
-  readonly availableSlots = [
-    '09:00 AM',
-    '10:30 AM',
-    '11:15 AM',
-    '02:00 PM',
-    '04:30 PM',
-  ];
+  private readonly api =
+    inject(AppointmentsApiService);
 
-  readonly selectedSlot = signal<string | null>(null);
+  private readonly destroyRef =
+    inject(DestroyRef);
 
-  selectSlot(slot: string): void {
+  private availabilityRequest?: Subscription;
+
+  private selectedDentistId:
+    | string
+    | null = null;
+
+  private selectedDate:
+    | string
+    | null = null;
+
+  protected readonly clinicTimeZone =
+    CLINIC_TIME_ZONE;
+
+  readonly availableSlots =
+    signal<readonly AvailabilitySlot[]>([]);
+
+  readonly selectedSlot =
+    signal<AvailabilitySlot | null>(null);
+
+  protected selectDentist(
+    dentistId: string,
+  ): void {
+    this.selectedDentistId =
+      dentistId || null;
+
+    this.refreshAvailabilitySlots();
+  }
+
+  protected selectDate(
+    date: string,
+  ): void {
+    this.selectedDate =
+      date || null;
+
+    this.refreshAvailabilitySlots();
+  }
+
+  protected selectSlot(
+    slot: AvailabilitySlot,
+  ): void {
     this.selectedSlot.set(slot);
+  }
+
+  private refreshAvailabilitySlots(): void {
+    this.availabilityRequest?.unsubscribe();
+
+    this.availableSlots.set([]);
+    this.selectedSlot.set(null);
+
+    if (
+      !this.selectedDentistId ||
+      !this.selectedDate
+    ) {
+      return;
+    }
+
+    const dentistId =
+      this.selectedDentistId;
+
+    const clinicDate =
+      this.selectedDate;
+
+    this.availabilityRequest =
+      this.api
+        .getDentistAvailability(
+          dentistId,
+        )
+        .pipe(
+          takeUntilDestroyed(
+            this.destroyRef,
+          ),
+        )
+        .subscribe({
+          next: (availability) => {
+            this.availableSlots.set(
+              deriveAvailabilitySlotsForDate(
+                availability.intervals,
+                clinicDate,
+              ),
+            );
+          },
+          error: () => {
+            this.availableSlots.set([]);
+            this.selectedSlot.set(null);
+          },
+        });
   }
 }
