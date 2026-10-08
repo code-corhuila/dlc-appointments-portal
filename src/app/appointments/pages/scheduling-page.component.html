@@ -335,9 +335,15 @@
       <button
         type="button"
         data-confirm-appointment
+        [disabled]="isAppointmentCreating()"
+        [attr.aria-busy]="isAppointmentCreating()"
         (click)="createAppointment()">
-        Confirmar Cita
-        <span aria-hidden="true">✓</span>
+        @if (isAppointmentCreating()) {
+          Creando cita...
+        } @else {
+          Confirmar Cita
+          <span aria-hidden="true">✓</span>
+        }
       </button>
     </aside>
   </div>

@@ -103,6 +103,9 @@ export class SchedulingPageComponent {
   readonly hasAvailabilityError =
     signal(false);
 
+  readonly isAppointmentCreating =
+    signal(false);
+
   protected searchPatients(
     search: string,
   ): void {
@@ -221,6 +224,10 @@ export class SchedulingPageComponent {
   }
 
   protected createAppointment(): void {
+    if (this.isAppointmentCreating()) {
+      return;
+    }
+
     const patient =
       this.selectedPatient();
 
@@ -248,6 +255,8 @@ export class SchedulingPageComponent {
         request,
       );
 
+    this.isAppointmentCreating.set(true);
+
     this.api
       .createAppointment(
         request,
@@ -257,6 +266,11 @@ export class SchedulingPageComponent {
         takeUntilDestroyed(
           this.destroyRef,
         ),
+        finalize(() => {
+          this.isAppointmentCreating.set(
+            false,
+          );
+        }),
       )
       .subscribe({
         next: () => undefined,
