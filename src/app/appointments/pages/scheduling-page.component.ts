@@ -65,6 +65,9 @@ export class SchedulingPageComponent {
   readonly selectedPatient =
     signal<PatientView | null>(null);
 
+  readonly isPatientSearchLoading =
+    signal(false);
+
   readonly selectedDate =
     signal<string | null>(null);
 
@@ -88,6 +91,7 @@ export class SchedulingPageComponent {
   ): void {
     this.patientSearchRequest?.unsubscribe();
 
+    this.isPatientSearchLoading.set(false);
     this.patientResults.set([]);
 
     const normalizedSearch =
@@ -96,6 +100,8 @@ export class SchedulingPageComponent {
     if (!normalizedSearch) {
       return;
     }
+
+    this.isPatientSearchLoading.set(true);
 
     this.patientSearchRequest =
       this.patients
@@ -107,6 +113,11 @@ export class SchedulingPageComponent {
           takeUntilDestroyed(
             this.destroyRef,
           ),
+          finalize(() => {
+            this.isPatientSearchLoading.set(
+              false,
+            );
+          }),
         )
         .subscribe({
           next: (page) => {
