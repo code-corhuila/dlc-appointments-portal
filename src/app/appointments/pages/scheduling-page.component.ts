@@ -6,7 +6,10 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription } from 'rxjs';
+import {
+  finalize,
+  Subscription,
+} from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import {
@@ -59,6 +62,15 @@ export class SchedulingPageComponent {
   readonly selectedSlot =
     signal<AvailabilitySlot | null>(null);
 
+  readonly isAvailabilityLoading =
+    signal(false);
+
+  readonly hasLoadedAvailability =
+    signal(false);
+
+  readonly hasAvailabilityError =
+    signal(false);
+
   protected selectDentist(
     dentistId: string,
   ): void {
@@ -84,9 +96,16 @@ export class SchedulingPageComponent {
     this.selectedSlot.set(slot);
   }
 
+  protected retryAvailability(): void {
+    this.refreshAvailabilitySlots();
+  }
+
   private refreshAvailabilitySlots(): void {
     this.availabilityRequest?.unsubscribe();
 
+    this.isAvailabilityLoading.set(false);
+    this.hasLoadedAvailability.set(false);
+    this.hasAvailabilityError.set(false);
     this.availableSlots.set([]);
     this.selectedSlot.set(null);
 
@@ -103,6 +122,8 @@ export class SchedulingPageComponent {
     const dentistId =
       this.selectedDentistId;
 
+    this.isAvailabilityLoading.set(true);
+
     this.availabilityRequest =
       this.api
         .getDentistAvailability(
@@ -112,20 +133,51 @@ export class SchedulingPageComponent {
           takeUntilDestroyed(
             this.destroyRef,
           ),
+          finalize(() => {
+            this.isAvailabilityLoading.set(
+              false,
+            );
+          }),
         )
         .subscribe({
           next: (availability) => {
-            this.availableSlots.set(
-              deriveAvailabilitySlotsForDate(
-                availability.intervals,
-                clinicDate,
-                availability.blockedIntervals,
-              ),
-            );
+            try {
+              const slots =
+                deriveAvailabilitySlotsForDate(
+                  availability.intervals,
+                  clinicDate,
+                  availability.blockedIntervals,
+                );
+
+              this.availableSlots.set(slots);
+              this.hasLoadedAvailability.set(
+                true,
+              );
+              this.hasAvailabilityError.set(
+                false,
+              );
+            } catch {
+              this.availableSlots.set([]);
+              this.selectedSlot.set(null);
+              this.hasLoadedAvailability.set(
+                false,
+              );
+              this.hasAvailabilityError.set(
+                true,
+              );
+            }
           },
           error: () => {
             this.availableSlots.set([]);
             this.selectedSlot.set(null);
+
+            this.hasLoadedAvailability.set(
+              false,
+            );
+
+            this.hasAvailabilityError.set(
+              true,
+            );
           },
         });
   }
