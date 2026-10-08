@@ -65,6 +65,9 @@ export class SchedulingPageComponent {
   readonly isAvailabilityLoading =
     signal(false);
 
+  readonly hasLoadedAvailability =
+    signal(false);
+
   protected selectDentist(
     dentistId: string,
   ): void {
@@ -94,6 +97,7 @@ export class SchedulingPageComponent {
     this.availabilityRequest?.unsubscribe();
 
     this.isAvailabilityLoading.set(false);
+    this.hasLoadedAvailability.set(false);
     this.availableSlots.set([]);
     this.selectedSlot.set(null);
 
@@ -136,10 +140,17 @@ export class SchedulingPageComponent {
                 availability.blockedIntervals,
               ),
             );
+
+            this.hasLoadedAvailability.set(
+              true,
+            );
           },
           error: () => {
             this.availableSlots.set([]);
             this.selectedSlot.set(null);
+            this.hasLoadedAvailability.set(
+              false,
+            );
           },
         });
   }
