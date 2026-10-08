@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,6 +31,12 @@ interface SchedulingDateOption {
 }
 
 const DATE_OPTION_COUNT = 5;
+
+const APPOINTMENT_CONFLICT_MESSAGE =
+  'Ese horario ya no está disponible. Seleccione otro horario.';
+
+const APPOINTMENT_SUCCESS_MESSAGE =
+  'Cita agendada correctamente.';
 
 @Component({
   selector: 'app-scheduling-page',
@@ -105,6 +112,12 @@ export class SchedulingPageComponent {
 
   readonly isAppointmentCreating =
     signal(false);
+
+  readonly appointmentError =
+    signal<string | null>(null);
+
+  readonly appointmentSuccess =
+    signal<string | null>(null);
 
   protected searchPatients(
     search: string,
@@ -190,6 +203,8 @@ export class SchedulingPageComponent {
     this.patientResults.set([]);
     this.hasCompletedPatientSearch.set(false);
     this.hasPatientSearchError.set(false);
+
+    this.clearAppointmentFeedback();
   }
 
   protected selectDentist(
@@ -197,6 +212,8 @@ export class SchedulingPageComponent {
   ): void {
     this.selectedDentistId =
       dentistId || null;
+
+    this.clearAppointmentFeedback();
 
     this.refreshAvailabilitySlots();
   }
@@ -208,6 +225,8 @@ export class SchedulingPageComponent {
       date || null,
     );
 
+    this.clearAppointmentFeedback();
+
     this.refreshAvailabilitySlots();
   }
 
@@ -215,6 +234,8 @@ export class SchedulingPageComponent {
     slot: AvailabilitySlot,
   ): void {
     this.selectedSlot.set(slot);
+
+    this.clearAppointmentFeedback();
   }
 
   protected setAppointmentReason(
@@ -255,6 +276,7 @@ export class SchedulingPageComponent {
         request,
       );
 
+    this.clearAppointmentFeedback();
     this.isAppointmentCreating.set(true);
 
     this.api
@@ -273,13 +295,56 @@ export class SchedulingPageComponent {
         }),
       )
       .subscribe({
-        next: () => undefined,
-        error: () => undefined,
+        next: () => {
+          this.appointmentError.set(null);
+
+          this.appointmentSuccess.set(
+            APPOINTMENT_SUCCESS_MESSAGE,
+          );
+        },
+        error: (error: unknown) => {
+          this.appointmentSuccess.set(null);
+
+          if (
+            this.isAppointmentConflict(
+              error,
+            )
+          ) {
+            this.appointmentError.set(
+              APPOINTMENT_CONFLICT_MESSAGE,
+            );
+          }
+        },
       });
   }
 
   protected retryAvailability(): void {
     this.refreshAvailabilitySlots();
+  }
+
+  private clearAppointmentFeedback(): void {
+    this.appointmentError.set(null);
+    this.appointmentSuccess.set(null);
+  }
+
+  private isAppointmentConflict(
+    error: unknown,
+  ): boolean {
+    if (
+      !(error instanceof HttpErrorResponse)
+    ) {
+      return false;
+    }
+
+    const body = error.error;
+
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      body.error ===
+        'APPOINTMENT_CONFLICT'
+    );
   }
 
   private refreshAvailabilitySlots(): void {
