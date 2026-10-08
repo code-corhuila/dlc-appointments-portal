@@ -1146,6 +1146,36 @@ describe('SchedulingPageComponent', () => {
     );
   });
 
+  it('shows local validation feedback and skips creation when scheduling data is incomplete', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(0);
+
+    const feedback =
+      element.querySelector(
+        '[data-appointment-error]',
+      );
+
+    expect(feedback).not.toBeNull();
+
+    expect(
+      feedback?.textContent,
+    ).toContain(
+      'Seleccione un paciente, un odontólogo y un horario antes de continuar.',
+    );
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
