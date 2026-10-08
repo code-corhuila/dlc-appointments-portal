@@ -94,4 +94,62 @@ describe('availability schedule defaults', () => {
       },
     ]);
   });
+
+  it('excludes slots that overlap blocked intervals', () => {
+    const deriveSlotsWithBlockedIntervals =
+      deriveAvailabilitySlotsForDate as unknown as (
+        intervals: readonly {
+          readonly startAt: string;
+          readonly endAt: string;
+        }[],
+        clinicDate: string,
+        blockedIntervals: readonly {
+          readonly startAt: string;
+          readonly endAt: string;
+        }[],
+      ) => readonly unknown[];
+
+    const slots = deriveSlotsWithBlockedIntervals(
+      [
+        {
+          startAt: '2026-10-05T14:00:00Z',
+          endAt: '2026-10-05T15:30:00Z',
+        },
+      ],
+      '2026-10-05',
+      [
+        {
+          startAt: '2026-10-05T14:30:00Z',
+          endAt: '2026-10-05T15:00:00Z',
+        },
+      ],
+    );
+
+    expect(slots).toEqual([
+      {
+        startAt: '2026-10-05T09:00:00-05:00',
+        endAt: '2026-10-05T09:30:00-05:00',
+        label: '09:00',
+      },
+      {
+        startAt: '2026-10-05T10:00:00-05:00',
+        endAt: '2026-10-05T10:30:00-05:00',
+        label: '10:00',
+      },
+    ]);
+  });
+
+  it('excludes slots that end outside the selected clinic date', () => {
+    const slots = deriveAvailabilitySlotsForDate(
+      [
+        {
+          startAt: '2026-10-06T04:30:00Z',
+          endAt: '2026-10-06T05:30:00Z',
+        },
+      ],
+      '2026-10-05',
+    );
+
+    expect(slots).toEqual([]);
+  });
 });
