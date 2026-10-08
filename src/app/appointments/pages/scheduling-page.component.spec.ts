@@ -102,6 +102,28 @@ describe('SchedulingPageComponent', () => {
     ).not.toBeNull();
   });
 
+  it('shows empty feedback when no slots are available for the selected date', () => {
+    availabilityResponse = of({
+      ...availability,
+      intervals: [],
+    });
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(requestedDentistIds).toEqual(['dentist-123']);
+
+    expect(
+      element.querySelector('[data-availability-empty]'),
+    ).not.toBeNull();
+
+    expect(
+      element.querySelector('[data-availability-empty]')?.textContent,
+    ).toContain('No hay horarios disponibles');
+  });
+
   it('loads dentist availability and renders slots for the selected date', () => {
     selectDentist('dentist-123');
     selectDate('2026-10-05');
