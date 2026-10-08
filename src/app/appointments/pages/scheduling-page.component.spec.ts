@@ -150,6 +150,28 @@ describe('SchedulingPageComponent', () => {
     expect(result?.textContent).toContain('123456789');
   });
 
+  it('shows loading feedback while patient search is pending', () => {
+    const pendingPatients =
+      new Subject<Page<PatientView>>();
+
+    patientSearchResponse = pendingPatients;
+
+    searchPatient('Ana');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(patientSearches).toEqual([
+      {
+        search: 'Ana',
+        status: 'ACTIVE',
+      },
+    ]);
+
+    expect(
+      element.querySelector('[data-patient-loading]'),
+    ).not.toBeNull();
+  });
+
   it('selects a patient and shows it in the appointment summary', () => {
     patientSearchResponse = of({
       data: [
