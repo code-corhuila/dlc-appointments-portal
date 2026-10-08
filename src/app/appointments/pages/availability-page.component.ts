@@ -235,14 +235,6 @@ import { DentistAvailability } from '../model/availability';
               </div>
             </article>
           }
-
-          <button
-            type="button"
-            data-save-availability
-            (click)="saveAvailability()"
-          >
-            Guardar Configuración Semanal
-          </button>
         </section>
 
         <aside class="generator-panel">
@@ -366,48 +358,6 @@ export class AvailabilityPageComponent {
     this.loadAvailability(
       this.selectedDentistId,
     );
-  }
-
-  protected saveAvailability(): void {
-    if (
-      !this.selectedDentistId ||
-      !this.loadedAvailability
-    ) {
-      return;
-    }
-
-    const currentAvailability =
-      this.loadedAvailability;
-
-    this.api
-      .updateDentistAvailability(
-        this.selectedDentistId,
-        {
-          intervals:
-            currentAvailability.intervals,
-          blockedIntervals:
-            currentAvailability.blockedIntervals,
-          expectedVersion:
-            currentAvailability.version,
-        },
-      )
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: (updatedAvailability) => {
-          this.loadedAvailability =
-            updatedAvailability;
-
-          this.applyAvailability(
-            updatedAvailability,
-          );
-
-          this.availabilityEmpty.set(
-            updatedAvailability.intervals.length === 0,
-          );
-        },
-      });
   }
 
   protected updateShiftTime(
