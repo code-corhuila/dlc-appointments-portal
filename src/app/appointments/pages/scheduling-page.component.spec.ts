@@ -1,5 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, Subject, of } from 'rxjs';
+import {
+  Observable,
+  Subject,
+  of,
+  throwError,
+} from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { DentistAvailability } from '../model/availability';
@@ -122,6 +127,49 @@ describe('SchedulingPageComponent', () => {
     expect(
       element.querySelector('[data-availability-empty]')?.textContent,
     ).toContain('No hay horarios disponibles');
+  });
+
+  it('shows an error and retries the availability request', () => {
+    availabilityResponse = throwError(
+      () => new Error('Availability unavailable'),
+    );
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(requestedDentistIds).toEqual(['dentist-123']);
+
+    expect(
+      element.querySelector('[data-availability-error]'),
+    ).not.toBeNull();
+
+    const retryButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-availability-retry]',
+      );
+
+    expect(retryButton).not.toBeNull();
+    expect(retryButton?.textContent).toContain('Reintentar');
+
+    availabilityResponse = of(availability);
+
+    retryButton?.click();
+    fixture.detectChanges();
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+      'dentist-123',
+    ]);
+
+    expect(
+      element.querySelector('[data-availability-error]'),
+    ).toBeNull();
+
+    expect(
+      element.querySelectorAll('[data-available-slot]').length,
+    ).toBe(2);
   });
 
   it('loads dentist availability and renders slots for the selected date', () => {
