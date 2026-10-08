@@ -2,20 +2,57 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
+import { of } from 'rxjs';
 
+import { AppointmentsApiService } from '../data/appointments-api.service';
+import { DentistAvailability } from '../model/availability';
 import { SchedulingPageComponent } from './scheduling-page.component';
 
 describe('SchedulingPageComponent', () => {
   let fixture: ComponentFixture<SchedulingPageComponent>;
+  let requestedDentistIds: string[];
+
+  const availability: DentistAvailability = {
+    id: 'availability-123',
+    dentistId: 'dentist-123',
+    intervals: [
+      {
+        startAt: '2026-10-05T14:00:00Z',
+        endAt: '2026-10-05T15:00:00Z',
+      },
+    ],
+    blockedIntervals: [],
+    version: 1,
+  };
 
   beforeEach(async () => {
+    requestedDentistIds = [];
+
+    const api = {
+      getDentistAvailability: (dentistId: string) => {
+        requestedDentistIds.push(dentistId);
+
+        return of(availability);
+      },
+    } as Pick<
+      AppointmentsApiService,
+      'getDentistAvailability'
+    >;
+
     await TestBed.configureTestingModule({
       imports: [SchedulingPageComponent],
+      providers: [
+        {
+          provide: AppointmentsApiService,
+          useValue: api,
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(
       SchedulingPageComponent,
     );
+
     fixture.detectChanges();
   });
 
@@ -23,32 +60,84 @@ describe('SchedulingPageComponent', () => {
     const element =
       fixture.nativeElement as HTMLElement;
 
-    expect(element.querySelector('h1')?.textContent).toContain(
+    expect(
+      element.querySelector('h1')?.textContent,
+    ).toContain(
       'Agendar Nueva Cita',
     );
 
-    expect(element.textContent).toContain('1. Paciente');
+    expect(element.textContent).toContain(
+      '1. Paciente',
+    );
+
     expect(element.textContent).toContain(
       '2. Fecha y horario',
     );
-    expect(element.textContent).toContain('3. Odontólogo');
-    expect(element.textContent).toContain('4. Motivo');
-    expect(element.textContent).toContain('Resumen de Cita');
+
+    expect(element.textContent).toContain(
+      '3. Odontólogo',
+    );
+
+    expect(element.textContent).toContain(
+      '4. Motivo',
+    );
+
+    expect(element.textContent).toContain(
+      'Resumen de Cita',
+    );
   });
 
-  it('shows available slots and clinic timezone', () => {
+  it('shows clinic timezone without invented slots initially', () => {
     const element =
       fixture.nativeElement as HTMLElement;
 
     expect(element.textContent).toContain(
       'Horarios disponibles',
     );
+
     expect(element.textContent).toContain(
       'America/Bogota',
     );
+
+    expect(
+      element.querySelectorAll(
+        '[data-available-slot]',
+      ).length,
+    ).toBe(0);
   });
 
-  it('allows an available slot to be selected', () => {
+  it('loads dentist availability and renders slots for the selected date', () => {
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const slots =
+      Array.from(
+        element.querySelectorAll<HTMLButtonElement>(
+          '[data-available-slot]',
+        ),
+      );
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+    ]);
+
+    expect(
+      slots.map(
+        (slot) => slot.textContent?.trim(),
+      ),
+    ).toEqual([
+      '09:00',
+      '09:30',
+    ]);
+  });
+
+  it('allows a derived availability slot to be selected', () => {
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
     const element =
       fixture.nativeElement as HTMLElement;
 
@@ -57,21 +146,26 @@ describe('SchedulingPageComponent', () => {
         '[data-available-slot]',
       );
 
-    expect(slots.length).toBeGreaterThan(0);
+    expect(slots.length).toBe(2);
 
     const selectedSlot = slots[0];
+
     selectedSlot.click();
     fixture.detectChanges();
 
     expect(
-      selectedSlot.getAttribute('aria-pressed'),
+      selectedSlot.getAttribute(
+        'aria-pressed',
+      ),
     ).toBe('true');
 
     expect(
       element.querySelector(
         '[data-selected-slot]',
       )?.textContent,
-    ).toContain(selectedSlot.textContent?.trim());
+    ).toContain(
+      '09:00',
+    );
   });
 
   it('provides the appointment confirmation action', () => {
@@ -84,8 +178,65 @@ describe('SchedulingPageComponent', () => {
       );
 
     expect(confirmButton).not.toBeNull();
+
     expect(confirmButton?.textContent).toContain(
       'Confirmar Cita',
     );
   });
+
+  function selectDentist(
+    dentistId: string,
+  ): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const select =
+      element.querySelector<HTMLSelectElement>(
+        '#dentist',
+      );
+
+    expect(select).not.toBeNull();
+
+    const option =
+      document.createElement('option');
+
+    option.value = dentistId;
+    option.textContent = 'Dentist test';
+
+    select?.append(option);
+
+    if (select) {
+      select.value = dentistId;
+
+      select.dispatchEvent(
+        new Event('change'),
+      );
+    }
+
+    fixture.detectChanges();
+  }
+
+  function selectDate(
+    date: string,
+  ): void {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const input =
+      element.querySelector<HTMLInputElement>(
+        '#appointment-date',
+      );
+
+    expect(input).not.toBeNull();
+
+    if (input) {
+      input.value = date;
+
+      input.dispatchEvent(
+        new Event('change'),
+      );
+    }
+
+    fixture.detectChanges();
+  }
 });
