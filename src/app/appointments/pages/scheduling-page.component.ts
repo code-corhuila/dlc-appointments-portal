@@ -35,6 +35,9 @@ const DATE_OPTION_COUNT = 5;
 const APPOINTMENT_CONFLICT_MESSAGE =
   'Ese horario ya no está disponible. Seleccione otro horario.';
 
+const APPOINTMENT_VALIDATION_MESSAGE =
+  'Los datos de la cita no son válidos. Revise la información e intente nuevamente.';
+
 const APPOINTMENT_SUCCESS_MESSAGE =
   'Cita agendada correctamente.';
 
@@ -313,6 +316,18 @@ export class SchedulingPageComponent {
             this.appointmentError.set(
               APPOINTMENT_CONFLICT_MESSAGE,
             );
+
+            return;
+          }
+
+          if (
+            this.isAppointmentValidationError(
+              error,
+            )
+          ) {
+            this.appointmentError.set(
+              APPOINTMENT_VALIDATION_MESSAGE,
+            );
           }
         },
       });
@@ -344,6 +359,26 @@ export class SchedulingPageComponent {
       'error' in body &&
       body.error ===
         'APPOINTMENT_CONFLICT'
+    );
+  }
+
+  private isAppointmentValidationError(
+    error: unknown,
+  ): boolean {
+    if (
+      !(error instanceof HttpErrorResponse)
+    ) {
+      return false;
+    }
+
+    const body = error.error;
+
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      body.error ===
+        'VALIDATION_ERROR'
     );
   }
 
