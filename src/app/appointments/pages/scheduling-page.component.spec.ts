@@ -150,6 +150,50 @@ describe('SchedulingPageComponent', () => {
     expect(result?.textContent).toContain('123456789');
   });
 
+  it('selects a patient and shows it in the appointment summary', () => {
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element = fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    expect(
+      element.querySelector('[data-selected-patient]')?.textContent,
+    ).toContain('Ana Torres');
+
+    expect(
+      element.querySelectorAll('[data-patient-result]').length,
+    ).toBe(0);
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
