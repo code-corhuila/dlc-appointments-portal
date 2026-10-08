@@ -35,6 +35,9 @@ const DATE_OPTION_COUNT = 5;
 const APPOINTMENT_CONFLICT_MESSAGE =
   'Ese horario ya no está disponible. Seleccione otro horario.';
 
+const APPOINTMENT_SUCCESS_MESSAGE =
+  'Cita agendada correctamente.';
+
 @Component({
   selector: 'app-scheduling-page',
   standalone: true,
@@ -111,6 +114,9 @@ export class SchedulingPageComponent {
     signal(false);
 
   readonly appointmentError =
+    signal<string | null>(null);
+
+  readonly appointmentSuccess =
     signal<string | null>(null);
 
   protected searchPatients(
@@ -197,7 +203,8 @@ export class SchedulingPageComponent {
     this.patientResults.set([]);
     this.hasCompletedPatientSearch.set(false);
     this.hasPatientSearchError.set(false);
-    this.appointmentError.set(null);
+
+    this.clearAppointmentFeedback();
   }
 
   protected selectDentist(
@@ -206,7 +213,7 @@ export class SchedulingPageComponent {
     this.selectedDentistId =
       dentistId || null;
 
-    this.appointmentError.set(null);
+    this.clearAppointmentFeedback();
 
     this.refreshAvailabilitySlots();
   }
@@ -218,7 +225,7 @@ export class SchedulingPageComponent {
       date || null,
     );
 
-    this.appointmentError.set(null);
+    this.clearAppointmentFeedback();
 
     this.refreshAvailabilitySlots();
   }
@@ -227,7 +234,8 @@ export class SchedulingPageComponent {
     slot: AvailabilitySlot,
   ): void {
     this.selectedSlot.set(slot);
-    this.appointmentError.set(null);
+
+    this.clearAppointmentFeedback();
   }
 
   protected setAppointmentReason(
@@ -268,7 +276,7 @@ export class SchedulingPageComponent {
         request,
       );
 
-    this.appointmentError.set(null);
+    this.clearAppointmentFeedback();
     this.isAppointmentCreating.set(true);
 
     this.api
@@ -287,8 +295,16 @@ export class SchedulingPageComponent {
         }),
       )
       .subscribe({
-        next: () => undefined,
+        next: () => {
+          this.appointmentError.set(null);
+
+          this.appointmentSuccess.set(
+            APPOINTMENT_SUCCESS_MESSAGE,
+          );
+        },
         error: (error: unknown) => {
+          this.appointmentSuccess.set(null);
+
           if (
             this.isAppointmentConflict(
               error,
@@ -304,6 +320,11 @@ export class SchedulingPageComponent {
 
   protected retryAvailability(): void {
     this.refreshAvailabilitySlots();
+  }
+
+  private clearAppointmentFeedback(): void {
+    this.appointmentError.set(null);
+    this.appointmentSuccess.set(null);
   }
 
   private isAppointmentConflict(
