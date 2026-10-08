@@ -1,6 +1,7 @@
 import {
   DEFAULT_SLOT_DURATION_MINUTES,
   DEFAULT_WEEKLY_AVAILABILITY,
+  deriveAvailabilitySlotsForDate,
   mapAvailabilityIntervalsToWeek,
 } from './availability-schedule';
 import { CLINIC_TIME_ZONE } from './clinic-time';
@@ -67,5 +68,30 @@ describe('availability schedule defaults', () => {
     ]);
 
     expect(schedule.tuesday).toBeUndefined();
+  });
+
+  it('derives thirty minute slots for the selected clinic date', () => {
+    const slots = deriveAvailabilitySlotsForDate(
+      [
+        {
+          startAt: '2026-10-05T14:00:00Z',
+          endAt: '2026-10-05T15:00:00Z',
+        },
+      ],
+      '2026-10-05',
+    );
+
+    expect(slots).toEqual([
+      {
+        startAt: '2026-10-05T09:00:00-05:00',
+        endAt: '2026-10-05T09:30:00-05:00',
+        label: '09:00',
+      },
+      {
+        startAt: '2026-10-05T09:30:00-05:00',
+        endAt: '2026-10-05T10:00:00-05:00',
+        label: '09:30',
+      },
+    ]);
   });
 });
