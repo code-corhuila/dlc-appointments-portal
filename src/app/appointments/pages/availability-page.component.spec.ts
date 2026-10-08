@@ -355,6 +355,37 @@ describe('AvailabilityPageComponent', () => {
     expect(saveButton?.disabled).toBe(false);
   });
 
+  it('shows success feedback after availability is saved', () => {
+    availabilityResponse$ = of({
+      ...availability,
+      version: 5,
+    });
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const saveButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-save-availability]',
+      );
+
+    saveButton?.click();
+    fixture.detectChanges();
+
+    const saveSuccess =
+      element.querySelector(
+        '[data-availability-save-success]',
+      );
+
+    expect(saveSuccess).not.toBeNull();
+
+    expect(saveSuccess?.textContent).toContain(
+      'Disponibilidad guardada correctamente.',
+    );
+  });
+
   it('saves edited shift time using the clinic local date', () => {
     const loadedAvailability: DentistAvailability = {
       ...availability,
