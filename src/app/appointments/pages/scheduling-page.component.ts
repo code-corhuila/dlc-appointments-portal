@@ -68,6 +68,9 @@ export class SchedulingPageComponent {
   readonly isPatientSearchLoading =
     signal(false);
 
+  readonly hasCompletedPatientSearch =
+    signal(false);
+
   readonly selectedDate =
     signal<string | null>(null);
 
@@ -92,6 +95,7 @@ export class SchedulingPageComponent {
     this.patientSearchRequest?.unsubscribe();
 
     this.isPatientSearchLoading.set(false);
+    this.hasCompletedPatientSearch.set(false);
     this.patientResults.set([]);
 
     const normalizedSearch =
@@ -124,9 +128,17 @@ export class SchedulingPageComponent {
             this.patientResults.set(
               page.data,
             );
+
+            this.hasCompletedPatientSearch.set(
+              true,
+            );
           },
           error: () => {
             this.patientResults.set([]);
+
+            this.hasCompletedPatientSearch.set(
+              false,
+            );
           },
         });
   }
@@ -136,6 +148,7 @@ export class SchedulingPageComponent {
   ): void {
     this.selectedPatient.set(patient);
     this.patientResults.set([]);
+    this.hasCompletedPatientSearch.set(false);
   }
 
   protected selectDentist(

@@ -40,6 +40,15 @@
             data-patient-loading>
             Buscando pacientes...
           </p>
+        } @else if (
+          hasCompletedPatientSearch() &&
+          patientResults().length === 0
+        ) {
+          <p
+            class="slot-placeholder"
+            data-patient-empty>
+            No se encontraron pacientes activos.
+          </p>
         }
 
         @if (patientResults().length > 0) {
