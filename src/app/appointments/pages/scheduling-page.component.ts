@@ -38,6 +38,9 @@ const APPOINTMENT_CONFLICT_MESSAGE =
 const APPOINTMENT_VALIDATION_MESSAGE =
   'Los datos de la cita no son válidos. Revise la información e intente nuevamente.';
 
+const APPOINTMENT_FORBIDDEN_MESSAGE =
+  'No tiene permisos para agendar esta cita.';
+
 const APPOINTMENT_SUCCESS_MESSAGE =
   'Cita agendada correctamente.';
 
@@ -328,6 +331,18 @@ export class SchedulingPageComponent {
             this.appointmentError.set(
               APPOINTMENT_VALIDATION_MESSAGE,
             );
+
+            return;
+          }
+
+          if (
+            this.isAppointmentForbidden(
+              error,
+            )
+          ) {
+            this.appointmentError.set(
+              APPOINTMENT_FORBIDDEN_MESSAGE,
+            );
           }
         },
       });
@@ -379,6 +394,26 @@ export class SchedulingPageComponent {
       'error' in body &&
       body.error ===
         'VALIDATION_ERROR'
+    );
+  }
+
+  private isAppointmentForbidden(
+    error: unknown,
+  ): boolean {
+    if (
+      !(error instanceof HttpErrorResponse)
+    ) {
+      return false;
+    }
+
+    const body = error.error;
+
+    return (
+      typeof body === 'object' &&
+      body !== null &&
+      'error' in body &&
+      body.error ===
+        'FORBIDDEN'
     );
   }
 
