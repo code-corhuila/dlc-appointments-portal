@@ -1,3 +1,5 @@
+
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   finalize,
@@ -328,6 +330,59 @@ describe('AvailabilityPageComponent', () => {
       'dentist-123',
       'dentist-123',
     ]);
+  });
+
+  it('shows API message from HttpErrorResponse and retries availability', () => {
+    const httpError = new HttpErrorResponse({
+      status: 503,
+      error: {
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Availability service is temporarily unavailable.',
+        traceId: 'trace-http-503',
+      },
+    });
+
+    availabilityResponse$ =
+      throwError(() => httpError);
+
+    selectDentist('dentist-123');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const errorState =
+      element.querySelector(
+        '[data-availability-error]',
+      );
+
+    expect(errorState).not.toBeNull();
+
+    expect(errorState?.textContent).toContain(
+      'Availability service is temporarily unavailable.',
+    );
+
+    const retryButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-availability-retry]',
+      );
+
+    expect(retryButton).not.toBeNull();
+
+    availabilityResponse$ = of(availability);
+
+    retryButton?.click();
+    fixture.detectChanges();
+
+    expect(requestedDentistIds).toEqual([
+      'dentist-123',
+      'dentist-123',
+    ]);
+
+    expect(
+      element.querySelector(
+        '[data-availability-error]',
+      ),
+    ).toBeNull();
   });
 
   it('disables monday schedule fields when monday is disabled', () => {
