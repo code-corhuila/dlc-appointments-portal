@@ -1,3 +1,4 @@
+
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,6 +23,7 @@ import {
 import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { ApiError } from '../model/api-error';
 import { DentistAvailability } from '../model/availability';
+import { toApiError } from '../model/to-api-error';
 
 @Component({
   selector: 'app-availability-page',
@@ -342,10 +344,10 @@ export class AvailabilityPageComponent {
             availability.intervals.length === 0,
           );
         },
-        error: (error: ApiError) => {
+        error: (error: unknown) => {
           this.loadedAvailability = null;
           this.availabilityEmpty.set(false);
-          this.availabilityError.set(error);
+          this.availabilityError.set(toApiError(error));
         },
       });
   }
