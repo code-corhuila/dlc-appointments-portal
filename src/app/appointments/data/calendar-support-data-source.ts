@@ -2,6 +2,8 @@ import {
   InjectionToken,
 } from '@angular/core';
 
+import { Appointment } from '../model/appointment';
+
 export type TreatmentKey =
   | 'cleaning'
   | 'surgery'
@@ -22,6 +24,7 @@ export interface WaitingListItem {
 export interface CalendarSupportDataSource {
   readonly treatmentLegend: readonly TreatmentLegendItem[];
   readonly waitingList: readonly WaitingListItem[];
+  readonly appointments: readonly Appointment[];
 }
 
 export const CALENDAR_SUPPORT_DATA_SOURCE =
@@ -56,6 +59,19 @@ export const CALENDAR_SUPPORT_FIXTURE_DATA: CalendarSupportDataSource = {
       treatment: 'Limpieza',
       treatmentKey: 'cleaning',
       preference: 'Cualquier horario disponible.',
+    },
+  ],
+  appointments: [
+    {
+      id: 'appointment-demo-001',
+      patientId: 'patient-demo-001',
+      dentistId: 'dentist-demo-001',
+      startAt: '2026-10-15T14:00:00-05:00',
+      endAt: '2026-10-15T14:30:00-05:00',
+      reason: 'Control preventivo',
+      status: 'PROGRAMADA',
+      confirmationStatus: 'PENDING',
+      version: 1,
     },
   ],
 };
