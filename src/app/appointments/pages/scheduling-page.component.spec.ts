@@ -1146,6 +1146,123 @@ describe('SchedulingPageComponent', () => {
     );
   });
 
+  it('shows generic feedback when appointment creation fails unexpectedly', () => {
+    appointmentCreationResponse = throwError(
+      () => new Error('Unexpected failure'),
+    );
+
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    const feedback =
+      element.querySelector(
+        '[data-appointment-error]',
+      );
+
+    expect(feedback).not.toBeNull();
+
+    expect(
+      feedback?.textContent,
+    ).toContain(
+      'No fue posible agendar la cita. Intente nuevamente.',
+    );
+
+    expect(
+      element.querySelector(
+        '[data-appointment-success]',
+      ),
+    ).toBeNull();
+
+    expect(confirmButton?.disabled).toBe(false);
+  });
+
+  it('shows local validation feedback and skips creation when scheduling data is incomplete', () => {
+    const element =
+      fixture.nativeElement as HTMLElement;
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(0);
+
+    const feedback =
+      element.querySelector(
+        '[data-appointment-error]',
+      );
+
+    expect(feedback).not.toBeNull();
+
+    expect(
+      feedback?.textContent,
+    ).toContain(
+      'Seleccione un paciente, un odontólogo y un horario antes de continuar.',
+    );
+  });
+
   it('shows clinic timezone without invented slots initially', () => {
     const element = fixture.nativeElement as HTMLElement;
 
