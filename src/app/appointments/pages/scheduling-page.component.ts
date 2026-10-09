@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -85,9 +86,8 @@ export class SchedulingPageComponent {
   private availabilityRequest?: Subscription;
   private patientSearchRequest?: Subscription;
 
-  private selectedDentistId:
-    | string
-    | null = null;
+  protected readonly selectedDentistId =
+    signal<string | null>(null);
 
   private lastPatientSearch:
     | string
@@ -103,6 +103,17 @@ export class SchedulingPageComponent {
 
   protected readonly dentists =
     signal<readonly DentistDirectoryItem[]>([]);
+
+  protected readonly selectedDentistName =
+    computed(() => {
+      const dentistId = this.selectedDentistId();
+
+      return (
+        this.dentists().find(
+          (dentist) => dentist.id === dentistId,
+        )?.name ?? null
+      );
+    });
 
   readonly patientResults =
     signal<readonly PatientView[]>([]);
@@ -168,6 +179,10 @@ export class SchedulingPageComponent {
     search: string,
   ): void {
     this.patientSearchRequest?.unsubscribe();
+
+    // A new search invalidates the previous selection.
+    this.selectedPatient.set(null);
+    this.clearAppointmentFeedback();
 
     this.isPatientSearchLoading.set(false);
     this.hasCompletedPatientSearch.set(false);
@@ -255,8 +270,9 @@ export class SchedulingPageComponent {
   protected selectDentist(
     dentistId: string,
   ): void {
-    this.selectedDentistId =
-      dentistId || null;
+    this.selectedDentistId.set(
+      dentistId || null,
+    );
 
     this.clearAppointmentFeedback();
 
@@ -297,12 +313,15 @@ export class SchedulingPageComponent {
     const patient =
       this.selectedPatient();
 
+    const dentistId =
+      this.selectedDentistId();
+
     const slot =
       this.selectedSlot();
 
     if (
       !patient ||
-      !this.selectedDentistId ||
+      !dentistId ||
       !slot
     ) {
       this.appointmentSuccess.set(null);
@@ -316,7 +335,7 @@ export class SchedulingPageComponent {
 
     const request: CreateAppointmentRequest = {
       patientId: patient.id,
-      dentistId: this.selectedDentistId,
+      dentistId,
       startAt: slot.startAt,
       endAt: slot.endAt,
       reason: this.appointmentReason.trim(),
@@ -415,15 +434,15 @@ export class SchedulingPageComponent {
     const clinicDate =
       this.selectedDate();
 
+    const dentistId =
+      this.selectedDentistId();
+
     if (
-      !this.selectedDentistId ||
+      !dentistId ||
       !clinicDate
     ) {
       return;
     }
-
-    const dentistId =
-      this.selectedDentistId;
 
     this.isAvailabilityLoading.set(true);
 

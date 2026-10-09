@@ -330,7 +330,14 @@
 
       <div class="summary-row">
         <span>Especialista</span>
-        <strong>No seleccionado</strong>
+
+        <strong data-selected-dentist>
+          @if (selectedDentistName()) {
+            {{ selectedDentistName() }}
+          } @else {
+            No seleccionado
+          }
+        </strong>
       </div>
 
       @if (appointmentSuccess()) {
