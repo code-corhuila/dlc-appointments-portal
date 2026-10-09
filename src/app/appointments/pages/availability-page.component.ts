@@ -13,6 +13,7 @@ import { finalize, Subscription } from 'rxjs';
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
 import {
+  addAvailabilityShift,
   AvailabilityDayDefaults,
   AvailabilityDayKey,
   AvailabilityTimeField,
@@ -130,7 +131,12 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   [id]="day.key + '-enabled'"
                   [checked]="isDayEnabled(day.key)"
                   [disabled]="availabilitySaving()"
-                  (change)="setDayEnabled(day.key, $any($event.target).checked)"
+                  (change)="
+                    setDayEnabled(
+                      day.key,
+                      $any($event.target).checked
+                    )
+                  "
                 />
 
                 <label [for]="day.key + '-enabled'">
@@ -295,6 +301,84 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
             Generar Slots de Disponibilidad
           </button>
 
+          <section data-shift-creation-form>
+            <h3>Agregar turno de disponibilidad</h3>
+
+            <p>
+              Seleccione una fecha concreta y las horas del nuevo turno.
+            </p>
+
+            <label for="new-shift-date">
+              Fecha del turno *
+            </label>
+
+            <input
+              id="new-shift-date"
+              type="date"
+              data-new-shift-date
+              [value]="newShiftDate()"
+              [disabled]="!hasLoadedAvailability() || availabilitySaving()"
+              (input)="
+                newShiftDate.set($any($event.target).value)
+              "
+            />
+
+            <label for="new-shift-start">
+              Hora de inicio *
+            </label>
+
+            <input
+              id="new-shift-start"
+              type="time"
+              data-new-shift-start
+              [value]="newShiftStart()"
+              [disabled]="!hasLoadedAvailability() || availabilitySaving()"
+              (input)="
+                newShiftStart.set($any($event.target).value)
+              "
+            />
+
+            <label for="new-shift-end">
+              Hora de finalización *
+            </label>
+
+            <input
+              id="new-shift-end"
+              type="time"
+              data-new-shift-end
+              [value]="newShiftEnd()"
+              [disabled]="!hasLoadedAvailability() || availabilitySaving()"
+              (input)="
+                newShiftEnd.set($any($event.target).value)
+              "
+            />
+
+            <button
+              type="button"
+              data-add-shift
+              [disabled]="!hasLoadedAvailability() || availabilitySaving()"
+              (click)="addNewShift()"
+            >
+              Agregar turno
+            </button>
+
+            @if (newShiftError(); as message) {
+              <p data-shift-create-error role="alert">
+                {{ message }}
+              </p>
+            }
+
+            @if (newShiftSuccess()) {
+              <p
+                data-shift-create-success
+                role="status"
+                aria-live="polite"
+              >
+                Turno agregado. Guarde los cambios para enviarlo al servidor.
+              </p>
+            }
+          </section>
+
           <p>
             Zona horaria: <strong>{{ clinicTimeZone }}</strong>
           </p>
@@ -365,6 +449,13 @@ export class AvailabilityPageComponent {
   protected readonly availabilitySaveError =
     signal<string | null>(null);
 
+  protected readonly newShiftDate = signal('');
+  protected readonly newShiftStart = signal('');
+  protected readonly newShiftEnd = signal('');
+  protected readonly newShiftError =
+    signal<string | null>(null);
+  protected readonly newShiftSuccess = signal(false);
+
   private readonly loadedSchedule =
     signal<WeeklyAvailabilitySchedule>({});
 
@@ -392,6 +483,7 @@ export class AvailabilityPageComponent {
     this.availabilityRequest?.unsubscribe();
 
     this.clearSaveFeedback();
+    this.resetNewShiftForm();
     this.disabledSecondShifts.set({});
 
     if (!dentistId) {
@@ -447,6 +539,95 @@ export class AvailabilityPageComponent {
     this.loadAvailability(
       this.selectedDentistId,
     );
+  }
+
+  protected addNewShift(): void {
+    if (
+      !this.loadedAvailability ||
+      !this.selectedDentistId ||
+      this.availabilitySaving()
+    ) {
+      return;
+    }
+
+    this.newShiftError.set(null);
+    this.newShiftSuccess.set(false);
+
+    const date = this.newShiftDate();
+    const start = this.newShiftStart();
+    const end = this.newShiftEnd();
+
+    if (!date || !start || !end) {
+      this.newShiftError.set(
+        'Complete la fecha y las horas de inicio y finalización.',
+      );
+      return;
+    }
+
+    try {
+      const intervals = addAvailabilityShift(
+        this.loadedAvailability.intervals,
+        date,
+        start,
+        end,
+        this.clinicTimeZone,
+      );
+
+      const newInterval = intervals[intervals.length - 1];
+
+      const newSchedule = mapAvailabilityIntervalsToWeek(
+        newInterval ? [newInterval] : [],
+        this.clinicTimeZone,
+      );
+
+      const dayKey = Object.keys(newSchedule)[0];
+
+      if (!dayKey) {
+        this.newShiftError.set(
+          'La fecha seleccionada no corresponde a un día configurable.',
+        );
+        return;
+      }
+
+      this.loadedAvailability = {
+        ...this.loadedAvailability,
+        intervals,
+      };
+
+      this.loadedSchedule.set(
+        mapAvailabilityIntervalsToWeek(
+          intervals,
+          this.clinicTimeZone,
+        ),
+      );
+
+      // Enable the new interval's day so saving does not discard it.
+      this.enabledDays.update((current) => ({
+        ...current,
+        [dayKey]: true,
+      }));
+
+      // Include a newly added second shift in the next save request.
+      this.disabledSecondShifts.update((current) => ({
+        ...current,
+        [dayKey]: false,
+      }));
+
+      this.availabilityEmpty.set(false);
+      this.clearSaveFeedback();
+
+      this.newShiftStart.set('');
+      this.newShiftEnd.set('');
+      this.newShiftSuccess.set(true);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error &&
+        error.message.includes('overlap')
+          ? 'El turno se superpone con otro horario de disponibilidad.'
+          : 'La fecha o el rango de horas no es válido. Revise los datos.';
+
+      this.newShiftError.set(message);
+    }
   }
 
   protected updateShiftTime(
@@ -529,6 +710,7 @@ export class AvailabilityPageComponent {
             availability.intervals.length === 0,
           );
 
+          this.newShiftSuccess.set(false);
           this.availabilitySaveError.set(null);
           this.availabilitySaveSuccess.set(true);
         },
@@ -757,6 +939,14 @@ export class AvailabilityPageComponent {
         ]),
       ),
     );
+  }
+
+  private resetNewShiftForm(): void {
+    this.newShiftDate.set('');
+    this.newShiftStart.set('');
+    this.newShiftEnd.set('');
+    this.newShiftError.set(null);
+    this.newShiftSuccess.set(false);
   }
 
   private clearSaveFeedback(): void {
