@@ -1,4 +1,5 @@
 
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,8 +23,23 @@ import {
   WeeklyAvailabilitySchedule,
 } from '../domain/availability-schedule';
 import { ApiError } from '../model/api-error';
-import { DentistAvailability } from '../model/availability';
+import {
+  DentistAvailability,
+  UpdateDentistAvailabilityRequest,
+} from '../model/availability';
 import { toApiError } from '../model/to-api-error';
+
+const AVAILABILITY_SAVE_FORBIDDEN_MESSAGE =
+  'No tiene permisos para modificar la disponibilidad de este odontólogo.';
+
+const AVAILABILITY_SAVE_CONFLICT_MESSAGE =
+  'La disponibilidad cambió o existe un conflicto de horarios. Actualice la información antes de guardar nuevamente.';
+
+const AVAILABILITY_SAVE_GENERIC_MESSAGE =
+  'No fue posible guardar la disponibilidad. Intente nuevamente.';
+
+const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
+  'Disponibilidad guardada correctamente.';
 
 @Component({
   selector: 'app-availability-page',
@@ -261,6 +277,38 @@ import { toApiError } from '../model/to-api-error';
           <p>
             Zona horaria: <strong>{{ clinicTimeZone }}</strong>
           </p>
+
+          <button
+            type="button"
+            data-availability-save
+            [disabled]="!hasLoadedAvailability() || availabilitySaving()"
+            (click)="saveAvailability()"
+          >
+            @if (availabilitySaving()) {
+              Guardando...
+            } @else {
+              Guardar cambios
+            }
+          </button>
+
+          @if (availabilitySaveSuccess()) {
+            <p
+              data-availability-save-success
+              role="status"
+              aria-live="polite"
+            >
+              {{ availabilitySaveSuccessMessage }}
+            </p>
+          }
+
+          @if (availabilitySaveError(); as message) {
+            <p
+              data-availability-save-error
+              role="alert"
+            >
+              {{ message }}
+            </p>
+          }
         </aside>
       </div>
 
@@ -283,15 +331,23 @@ export class AvailabilityPageComponent {
     DEFAULT_SLOT_DURATION_MINUTES;
   protected readonly clinicTimeZone = inject(CLINIC_TIME_ZONE_CONFIG);
 
+  protected readonly availabilitySaveSuccessMessage =
+    AVAILABILITY_SAVE_SUCCESS_MESSAGE;
+
   protected readonly availabilityLoading = signal(false);
   protected readonly availabilityEmpty = signal(false);
   protected readonly availabilityError =
     signal<ApiError | null>(null);
 
+  protected readonly availabilitySaving = signal(false);
+  protected readonly availabilitySaveSuccess = signal(false);
+  protected readonly availabilitySaveError =
+    signal<string | null>(null);
+
   private readonly loadedSchedule =
     signal<WeeklyAvailabilitySchedule>({});
 
-  private readonly hasLoadedAvailability = signal(false);
+  protected readonly hasLoadedAvailability = signal(false);
 
   private selectedDentistId: string | null = null;
 
@@ -306,6 +362,8 @@ export class AvailabilityPageComponent {
 
   protected loadAvailability(dentistId: string): void {
     this.availabilityRequest?.unsubscribe();
+
+    this.clearSaveFeedback();
 
     if (!dentistId) {
       this.selectedDentistId = null;
@@ -368,7 +426,7 @@ export class AvailabilityPageComponent {
     field: AvailabilityTimeField,
     time: string,
   ): void {
-    if (!this.loadedAvailability) {
+    if (!this.loadedAvailability || this.availabilitySaving()) {
       return;
     }
 
@@ -387,12 +445,96 @@ export class AvailabilityPageComponent {
       intervals,
     };
 
+    this.clearSaveFeedback();
+
     this.loadedSchedule.set(
       mapAvailabilityIntervalsToWeek(
         intervals,
         this.clinicTimeZone,
       ),
     );
+  }
+
+  protected saveAvailability(): void {
+    if (
+      !this.loadedAvailability ||
+      !this.selectedDentistId ||
+      this.availabilitySaving()
+    ) {
+      return;
+    }
+
+    const dentistId = this.selectedDentistId;
+
+    const request: UpdateDentistAvailabilityRequest = {
+      intervals: this.loadedAvailability.intervals,
+      blockedIntervals: this.loadedAvailability.blockedIntervals,
+      expectedVersion: this.loadedAvailability.version,
+    };
+
+    this.clearSaveFeedback();
+    this.availabilitySaving.set(true);
+
+    this.api
+      .updateDentistAvailability(dentistId, request)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          this.availabilitySaving.set(false);
+        }),
+      )
+      .subscribe({
+        next: (availability) => {
+          if (this.selectedDentistId !== dentistId) {
+            return;
+          }
+
+          this.loadedAvailability = availability;
+          this.applyAvailability(availability);
+
+          this.availabilityEmpty.set(
+            availability.intervals.length === 0,
+          );
+
+          this.availabilitySaveError.set(null);
+          this.availabilitySaveSuccess.set(true);
+        },
+        error: (error: unknown) => {
+          if (this.selectedDentistId !== dentistId) {
+            return;
+          }
+
+          const apiError = toApiError(error);
+
+          const status =
+            error instanceof HttpErrorResponse
+              ? error.status
+              : 0;
+
+          if (
+            status === 403 ||
+            apiError.error === 'FORBIDDEN'
+          ) {
+            this.availabilitySaveError.set(
+              AVAILABILITY_SAVE_FORBIDDEN_MESSAGE,
+            );
+          } else if (
+            status === 409 ||
+            apiError.error === 'STALE_VERSION' ||
+            apiError.error === 'APPOINTMENT_CONFLICT'
+          ) {
+            this.availabilitySaveError.set(
+              AVAILABILITY_SAVE_CONFLICT_MESSAGE,
+            );
+          } else {
+            this.availabilitySaveError.set(
+              AVAILABILITY_SAVE_GENERIC_MESSAGE,
+            );
+          }
+
+          this.availabilitySaveSuccess.set(false);
+        },
+      });
   }
 
   protected shiftStart(
@@ -483,6 +625,11 @@ export class AvailabilityPageComponent {
         ]),
       ),
     );
+  }
+
+  private clearSaveFeedback(): void {
+    this.availabilitySaveSuccess.set(false);
+    this.availabilitySaveError.set(null);
   }
 
   private resetEnabledDays(): void {
