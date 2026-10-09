@@ -6,6 +6,7 @@ import {
   CancelAppointmentRequest,
   ConfirmAppointmentRequest,
   RescheduleAppointmentRequest,
+  NoShowAppointmentRequest,
 } from '../model/appointment-operations';
 
 @Injectable()
@@ -64,6 +65,24 @@ export class CalendarAppointmentDemoService {
       reason: 'Control preventivo',
       status: 'EN_ATENCION',
       confirmationStatus: 'CONFIRMED',
+      version: request.expectedVersion + 1,
+    });
+  }
+
+  markNoShow(
+    id: string,
+    request: NoShowAppointmentRequest,
+    _idempotencyKey: string,
+  ): Observable<Appointment> {
+    return of({
+      id,
+      patientId: 'patient-demo-001',
+      dentistId: 'dentist-demo-001',
+      startAt: '2026-10-15T14:00:00-05:00',
+      endAt: '2026-10-15T14:30:00-05:00',
+      reason: request.reason,
+      status: 'NO_ASISTIO',
+      confirmationStatus: 'PENDING',
       version: request.expectedVersion + 1,
     });
   }

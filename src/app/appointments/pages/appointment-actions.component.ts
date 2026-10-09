@@ -129,6 +129,14 @@ import {
           <button type="button" data-appointment-dismiss-attention [disabled]="isSubmitting()" (click)="attentionFormId.set(null)">Volver</button>
         }
       }
+      @if (canNoShow()) {
+        <button type="button" data-appointment-no-show [disabled]="isSubmitting()" (click)="noShowFormId.set(appointment().id)">Registrar inasistencia</button>
+        @if (isChoosingNoShow()) {
+          <input data-no-show-reason [value]="noShowReason()" (input)="noShowReason.set($any($event.target).value)" />
+          <button type="button" data-appointment-submit-no-show [disabled]="isSubmitting() || !noShowReason().trim()" (click)="submitNoShow()">Confirmar inasistencia</button>
+          <button type="button" data-appointment-dismiss-no-show (click)="noShowFormId.set(null)">Volver</button>
+        }
+      }
 
       @if (feedback()) {
         <p role="status">{{ feedback() }}</p>
@@ -151,6 +159,7 @@ export class AppointmentActionsComponent {
     signal<string | null>(null);
   private readonly reschedulingFormAppointmentId = signal<string | null>(null);
   readonly attentionFormId = signal<string | null>(null);
+  readonly noShowFormId = signal<string | null>(null);
 
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
@@ -208,6 +217,7 @@ export class AppointmentActionsComponent {
   readonly cancellationReason = signal('');
   readonly reschedulingStart = signal('');
   readonly reschedulingReason = signal('');
+  readonly noShowReason = signal('');
 
   readonly feedback = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
@@ -225,6 +235,11 @@ export class AppointmentActionsComponent {
       new Date(startAt).getTime() !== new Date(this.currentAppointment().startAt).getTime();
   });
   readonly isChoosingAttention = computed(() => this.attentionFormId() === this.appointment().id);
+  readonly isChoosingNoShow = computed(() => this.noShowFormId() === this.appointment().id);
+  readonly canNoShow = computed(() => {
+    const appointment = this.currentAppointment();
+    return this.canManage() && (appointment.status === 'PROGRAMADA' || appointment.status === 'CONFIRMADA') && !Number.isNaN(new Date(appointment.endAt).getTime()) && this.now().getTime() >= new Date(appointment.endAt).getTime();
+  });
 
   startConfirmation(): void {
     if (
@@ -423,6 +438,15 @@ export class AppointmentActionsComponent {
     this.api.startAttention(appointment.id, { expectedVersion: appointment.version }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.attentionFormId.set(null); this.feedback.set('Atención iniciada correctamente.'); },
       error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo iniciar la atención.'); },
+    });
+  }
+
+  submitNoShow(): void {
+    const appointment = this.currentAppointment(); const reason = this.noShowReason().trim();
+    if (!this.canNoShow() || !this.isChoosingNoShow() || !reason || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.api.markNoShow(appointment.id, { expectedVersion: appointment.version, reason }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.noShowFormId.set(null); this.feedback.set('Inasistencia registrada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo registrar la inasistencia.'); },
     });
   }
 }

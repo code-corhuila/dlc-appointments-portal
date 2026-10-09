@@ -347,6 +347,22 @@ describe('CalendarPageComponent', () => {
     expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
   });
 
+  it('registers a no-show for a completed demonstration appointment', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-no-show-001"]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-no-show]')!.click();
+    fixture.detectChanges();
+    const reason = element.querySelector<HTMLInputElement>('[data-no-show-reason]')!;
+    reason.value = 'Paciente ausente';
+    reason.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-no-show]')!.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('NO_ASISTIO');
+    expect(element.querySelector('[data-calendar-appointment="appointment-demo-no-show-001"]')?.textContent).toContain('NO_ASISTIO');
+  });
+
   it('cancels an eligible demonstration appointment without a backend request', () => {
     const element = fixture.nativeElement as HTMLElement;
 
