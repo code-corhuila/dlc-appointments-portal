@@ -122,6 +122,14 @@ import {
         }
       }
 
+      @if (canManage() && currentAppointment().status === 'CONFIRMADA') {
+        <button type="button" data-appointment-start-attention [disabled]="isSubmitting()" (click)="startAttentionConfirmation()">Iniciar atención</button>
+        @if (isChoosingAttention()) {
+          <button type="button" data-appointment-submit-attention [disabled]="isSubmitting()" (click)="submitAttention()">Confirmar inicio</button>
+          <button type="button" data-appointment-dismiss-attention [disabled]="isSubmitting()" (click)="attentionFormId.set(null)">Volver</button>
+        }
+      }
+
       @if (feedback()) {
         <p role="status">{{ feedback() }}</p>
       }
@@ -142,6 +150,7 @@ export class AppointmentActionsComponent {
   private readonly cancellationFormAppointmentId =
     signal<string | null>(null);
   private readonly reschedulingFormAppointmentId = signal<string | null>(null);
+  readonly attentionFormId = signal<string | null>(null);
 
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
@@ -215,6 +224,7 @@ export class AppointmentActionsComponent {
       !!startAt && new Date(startAt).getTime() > this.now().getTime() &&
       new Date(startAt).getTime() !== new Date(this.currentAppointment().startAt).getTime();
   });
+  readonly isChoosingAttention = computed(() => this.attentionFormId() === this.appointment().id);
 
   startConfirmation(): void {
     if (
@@ -403,5 +413,16 @@ export class AppointmentActionsComponent {
         next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.reschedulingFormAppointmentId.set(null); this.feedback.set('Reprogramación registrada correctamente.'); },
         error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo reprogramar la cita.'); },
       });
+  }
+
+  startAttentionConfirmation(): void { if (!this.isSubmitting() && this.currentAppointment().status === 'CONFIRMADA') this.attentionFormId.set(this.appointment().id); }
+  submitAttention(): void {
+    const appointment = this.currentAppointment();
+    if (!this.isChoosingAttention() || appointment.status !== 'CONFIRMADA' || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.feedback.set(null); this.errorMessage.set(null);
+    this.api.startAttention(appointment.id, { expectedVersion: appointment.version }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.attentionFormId.set(null); this.feedback.set('Atención iniciada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo iniciar la atención.'); },
+    });
   }
 }
