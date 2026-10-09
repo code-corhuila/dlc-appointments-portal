@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -38,5 +39,23 @@ describe('clinic time helpers', () => {
     expect(() =>
       toClinicOffsetDateTime('2026-02-31T09:30'),
     ).toThrow('Invalid clinic local date-time');
+  });
+
+  it('uses the winter UTC offset of the configured time zone', () => {
+    expect(
+      toClinicOffsetDateTime(
+        '2026-01-15T09:30',
+        'America/New_York',
+      ),
+    ).toBe('2026-01-15T09:30:00-05:00');
+  });
+
+  it('uses the summer UTC offset of the configured time zone', () => {
+    expect(
+      toClinicOffsetDateTime(
+        '2026-07-15T09:30',
+        'America/New_York',
+      ),
+    ).toBe('2026-07-15T09:30:00-04:00');
   });
 });
