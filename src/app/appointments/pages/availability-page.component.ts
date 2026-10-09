@@ -379,6 +379,7 @@ export class AvailabilityPageComponent {
         shiftIndex,
         field,
         time,
+        this.clinicTimeZone,
       );
 
     this.loadedAvailability = {
@@ -389,6 +390,7 @@ export class AvailabilityPageComponent {
     this.loadedSchedule.set(
       mapAvailabilityIntervalsToWeek(
         intervals,
+        this.clinicTimeZone,
       ),
     );
   }
@@ -463,6 +465,7 @@ export class AvailabilityPageComponent {
     const schedule =
       mapAvailabilityIntervalsToWeek(
         availability.intervals,
+        this.clinicTimeZone,
       );
 
     this.loadedSchedule.set(schedule);
@@ -493,4 +496,3 @@ export class AvailabilityPageComponent {
     );
   }
 }
-
