@@ -24,6 +24,7 @@ import {
 } from '../domain/availability-schedule';
 import { ApiError } from '../model/api-error';
 import {
+  AvailabilityInterval,
   DentistAvailability,
   UpdateDentistAvailabilityRequest,
 } from '../model/availability';
@@ -66,6 +67,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
         <select
           id="dentist"
           data-dentist-select
+          [disabled]="availabilitySaving()"
           (change)="loadAvailability($any($event.target).value)"
         >
           <option value="">Seleccione un odontólogo</option>
@@ -127,6 +129,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="checkbox"
                   [id]="day.key + '-enabled'"
                   [checked]="isDayEnabled(day.key)"
+                  [disabled]="availabilitySaving()"
                   (change)="setDayEnabled(day.key, $any($event.target).checked)"
                 />
 
@@ -147,7 +150,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftStart(day, 0)"
                   data-shift-one-start
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -167,7 +170,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftEnd(day, 0)"
                   data-shift-one-end
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -184,7 +187,17 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="checkbox"
                   [id]="day.key + '-second-shift'"
                   [checked]="isSecondShiftEnabled(day)"
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    availabilitySaving() ||
+                    (hasLoadedAvailability() && !hasSecondShift(day))
+                  "
+                  (change)="
+                    setSecondShiftEnabled(
+                      day,
+                      $any($event.target).checked
+                    )
+                  "
                 />
 
                 <label [for]="day.key + '-second-shift'">
@@ -204,7 +217,11 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftStart(day, 1)"
                   data-shift-two-start
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    !isSecondShiftEnabled(day) ||
+                    availabilitySaving()
+                  "
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -224,7 +241,11 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftEnd(day, 1)"
                   data-shift-two-end
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    !isSecondShiftEnabled(day) ||
+                    availabilitySaving()
+                  "
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -244,7 +265,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                 <select
                   [id]="day.key + '-slot-duration'"
                   data-slot-duration
-                  [disabled]="!isDayEnabled(day.key)"
+                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
                 >
                   <option [value]="slotDurationMinutes">
                     {{ slotDurationMinutes }} Min
@@ -360,10 +381,18 @@ export class AvailabilityPageComponent {
     ),
   );
 
+  private readonly disabledSecondShifts =
+    signal<Record<string, boolean>>({});
+
   protected loadAvailability(dentistId: string): void {
+    if (this.availabilitySaving()) {
+      return;
+    }
+
     this.availabilityRequest?.unsubscribe();
 
     this.clearSaveFeedback();
+    this.disabledSecondShifts.set({});
 
     if (!dentistId) {
       this.selectedDentistId = null;
@@ -426,7 +455,11 @@ export class AvailabilityPageComponent {
     field: AvailabilityTimeField,
     time: string,
   ): void {
-    if (!this.loadedAvailability || this.availabilitySaving()) {
+    if (
+      !this.loadedAvailability ||
+      this.availabilitySaving() ||
+      !this.isDayEnabled(dayKey)
+    ) {
       return;
     }
 
@@ -467,7 +500,7 @@ export class AvailabilityPageComponent {
     const dentistId = this.selectedDentistId;
 
     const request: UpdateDentistAvailabilityRequest = {
-      intervals: this.loadedAvailability.intervals,
+      intervals: this.getEnabledIntervals(),
       blockedIntervals: this.loadedAvailability.blockedIntervals,
       expectedVersion: this.loadedAvailability.version,
     };
@@ -573,6 +606,16 @@ export class AvailabilityPageComponent {
       : day.shiftTwo.end;
   }
 
+  protected hasSecondShift(
+    day: AvailabilityDayDefaults,
+  ): boolean {
+    return (
+      (this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.length ?? 0) > 1
+    );
+  }
+
   protected isSecondShiftEnabled(
     day: AvailabilityDayDefaults,
   ): boolean {
@@ -581,10 +624,30 @@ export class AvailabilityPageComponent {
     }
 
     return (
-      (this.loadedSchedule()[
-        day.key as AvailabilityDayKey
-      ]?.length ?? 0) > 1
+      this.hasSecondShift(day) &&
+      !this.disabledSecondShifts()[day.key]
     );
+  }
+
+  protected setSecondShiftEnabled(
+    day: AvailabilityDayDefaults,
+    enabled: boolean,
+  ): void {
+    if (
+      !this.hasLoadedAvailability() ||
+      !this.isDayEnabled(day.key) ||
+      !this.hasSecondShift(day) ||
+      this.availabilitySaving()
+    ) {
+      return;
+    }
+
+    this.disabledSecondShifts.update((current) => ({
+      ...current,
+      [day.key]: !enabled,
+    }));
+
+    this.clearSaveFeedback();
   }
 
   protected isDayEnabled(day: string): boolean {
@@ -595,10 +658,78 @@ export class AvailabilityPageComponent {
     day: string,
     enabled: boolean,
   ): void {
+    if (this.availabilitySaving()) {
+      return;
+    }
+
     this.enabledDays.update((current) => ({
       ...current,
       [day]: enabled,
     }));
+
+    this.clearSaveFeedback();
+  }
+
+  private getEnabledIntervals():
+    readonly AvailabilityInterval[] {
+    if (!this.loadedAvailability) {
+      return [];
+    }
+
+    const intervals =
+      this.loadedAvailability.intervals;
+
+    const entries = intervals.map((interval, index) => {
+      const schedule =
+        mapAvailabilityIntervalsToWeek(
+          [interval],
+          this.clinicTimeZone,
+        );
+
+      const dayKey =
+        Object.keys(schedule)[0] as
+          | AvailabilityDayKey
+          | undefined;
+
+      const startTime = dayKey
+        ? schedule[dayKey]?.[0]?.start ?? ''
+        : '';
+
+      return {
+        index,
+        dayKey,
+        startTime,
+      };
+    });
+
+    const excludedIndexes = new Set<number>();
+
+    for (const day of this.weekDays) {
+      const dayEntries = entries
+        .filter((entry) => entry.dayKey === day.key)
+        .sort(
+          (left, right) =>
+            left.startTime.localeCompare(
+              right.startTime,
+            ) || left.index - right.index,
+        );
+
+      if (!this.isDayEnabled(day.key)) {
+        for (const entry of dayEntries) {
+          excludedIndexes.add(entry.index);
+        }
+      } else if (
+        !this.isSecondShiftEnabled(day) &&
+        dayEntries.length > 1
+      ) {
+        excludedIndexes.add(dayEntries[1].index);
+      }
+    }
+
+    return intervals.filter(
+      (_interval, index) =>
+        !excludedIndexes.has(index),
+    );
   }
 
   private applyAvailability(
@@ -612,6 +743,7 @@ export class AvailabilityPageComponent {
 
     this.loadedSchedule.set(schedule);
     this.hasLoadedAvailability.set(true);
+    this.disabledSecondShifts.set({});
 
     this.enabledDays.set(
       Object.fromEntries(
