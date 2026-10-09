@@ -13,6 +13,7 @@ import {
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
 import {
   DENTIST_DIRECTORY,
   DentistDirectoryItem,
@@ -20,9 +21,9 @@ import {
 import { PatientsLookupService } from '../data/patients-lookup.service';
 import {
   AvailabilitySlot,
+  DEFAULT_SLOT_DURATION_MINUTES,
   deriveAvailabilitySlotsForDate,
 } from '../domain/availability-schedule';
-import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { IdempotencyKeyManager } from '../domain/idempotency-key';
 import { CreateAppointmentRequest } from '../model/appointment';
 import { PatientView } from '../model/patient';
@@ -95,10 +96,10 @@ export class SchedulingPageComponent {
   private appointmentReason = '';
 
   protected readonly clinicTimeZone =
-    CLINIC_TIME_ZONE;
+    inject(CLINIC_TIME_ZONE_CONFIG);
 
   protected readonly dateOptions =
-    buildUpcomingDateOptions();
+    buildUpcomingDateOptions(this.clinicTimeZone);
 
   protected readonly dentists =
     signal<readonly DentistDirectoryItem[]>([]);
@@ -449,6 +450,8 @@ export class SchedulingPageComponent {
                   availability.intervals,
                   clinicDate,
                   availability.blockedIntervals,
+                  DEFAULT_SLOT_DURATION_MINUTES,
+                  this.clinicTimeZone,
                 );
 
               this.availableSlots.set(slots);
@@ -489,14 +492,38 @@ export class SchedulingPageComponent {
   }
 }
 
-function buildUpcomingDateOptions():
-  readonly SchedulingDateOption[] {
-  const now = new Date();
+function buildUpcomingDateOptions(
+  timeZone: string,
+): readonly SchedulingDateOption[] {
+  // Read today's calendar date in the configured clinic time zone.
+  const todayParts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(new Date())
+      .map((part) => [
+        part.type,
+        part.value,
+      ]),
+  );
+
+  // Use UTC calendar arithmetic so host time zones and DST
+  // changes cannot shift the selected clinic calendar date.
+  const firstDate = new Date(
+    Date.UTC(
+      Number(todayParts['year']),
+      Number(todayParts['month']) - 1,
+      Number(todayParts['day']),
+    ),
+  );
 
   return Array.from(
     { length: DATE_OPTION_COUNT },
     (_, index) => {
-      const candidate = new Date(now);
+      const candidate = new Date(firstDate);
 
       candidate.setUTCDate(
         candidate.getUTCDate() + index,
@@ -512,11 +539,13 @@ function buildUpcomingDateOptions():
 function toSchedulingDateOption(
   date: Date,
 ): SchedulingDateOption {
+  // The date already represents a clinic calendar day.
+  // Format in UTC to preserve that exact calendar date.
   const parts =
     new Intl.DateTimeFormat(
       'es-CO',
       {
-        timeZone: CLINIC_TIME_ZONE,
+        timeZone: 'UTC',
         weekday: 'short',
         year: 'numeric',
         month: 'short',
@@ -536,7 +565,7 @@ function toSchedulingDateOption(
     new Intl.DateTimeFormat(
       'en-US',
       {
-        timeZone: CLINIC_TIME_ZONE,
+        timeZone: 'UTC',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
