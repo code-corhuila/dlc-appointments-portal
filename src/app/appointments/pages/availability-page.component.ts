@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, Subscription } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
 import {
   AvailabilityDayDefaults,
   AvailabilityDayKey,
@@ -20,7 +21,6 @@ import {
   updateAvailabilityIntervalTime,
   WeeklyAvailabilitySchedule,
 } from '../domain/availability-schedule';
-import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { ApiError } from '../model/api-error';
 import { DentistAvailability } from '../model/availability';
 import { toApiError } from '../model/to-api-error';
@@ -281,7 +281,7 @@ export class AvailabilityPageComponent {
   protected readonly weekDays = DEFAULT_WEEKLY_AVAILABILITY;
   protected readonly slotDurationMinutes =
     DEFAULT_SLOT_DURATION_MINUTES;
-  protected readonly clinicTimeZone = CLINIC_TIME_ZONE;
+  protected readonly clinicTimeZone = inject(CLINIC_TIME_ZONE_CONFIG);
 
   protected readonly availabilityLoading = signal(false);
   protected readonly availabilityEmpty = signal(false);
@@ -493,3 +493,4 @@ export class AvailabilityPageComponent {
     );
   }
 }
+
