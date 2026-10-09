@@ -369,4 +369,39 @@ describe('CalendarPageComponent', () => {
     )?.textContent).toContain('CANCELADA');
     expect(element.querySelector('[data-appointment-cancel]')).toBeNull();
   });
+
+  it('reschedules a demonstration appointment without a backend request', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>(
+      '[data-calendar-appointment="appointment-demo-001"]',
+    )!.click();
+    fixture.detectChanges();
+
+    element.querySelector<HTMLButtonElement>(
+      '[data-appointment-reschedule]',
+    )!.click();
+    fixture.detectChanges();
+
+    const start = element.querySelector<HTMLInputElement>(
+      '[data-rescheduling-start]',
+    )!;
+    const reason = element.querySelector<HTMLInputElement>(
+      '[data-rescheduling-reason]',
+    )!;
+    start.value = '2026-10-17T09:00';
+    reason.value = 'Solicitud del paciente';
+    start.dispatchEvent(new Event('input', { bubbles: true }));
+    reason.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+
+    element.querySelector<HTMLButtonElement>(
+      '[data-appointment-submit-rescheduling]',
+    )!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[role="status"]')?.textContent)
+      .toContain('Reprogramación registrada correctamente');
+    expect(element.querySelector('[data-selected-appointment]')?.textContent)
+      .toContain('2026-10-17');
+  });
 });
