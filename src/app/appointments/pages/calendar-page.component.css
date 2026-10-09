@@ -190,6 +190,16 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.calendar-appointment-label {
+  margin-top: 8px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .calendar-day:nth-child(7n) {
   border-right: 0;
 }
@@ -208,6 +218,41 @@ button:focus-visible {
   display: grid;
   gap: 16px;
   padding-top: 42px;
+}
+
+.selected-appointment-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.selected-appointment-panel > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.selected-appointment-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.selected-appointment-panel dl div {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.selected-appointment-panel dt {
+  color: var(--text-secondary);
+}
+
+.selected-appointment-panel dd {
+  margin: 0;
+  font-weight: 700;
 }
 
 .calendar-panel {

@@ -7,6 +7,8 @@ import {
   CALENDAR_SUPPORT_DATA_SOURCE,
   CALENDAR_SUPPORT_FIXTURE_DATA,
 } from '../data/calendar-support-data-source';
+import { CalendarAppointmentDemoService } from '../data/calendar-appointment-demo.service';
+import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CalendarPageComponent } from './calendar-page.component';
 
 describe('CalendarPageComponent', () => {
@@ -291,5 +293,42 @@ describe('CalendarPageComponent', () => {
         days[6] as HTMLElement
       ).dataset['date'],
     ).toBe('2026-10-24');
+  });
+
+  it('selects a demonstration appointment and confirms it without a backend request', () => {
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(
+      fixture.debugElement.injector.get(AppointmentsApiService),
+    ).toBeInstanceOf(CalendarAppointmentDemoService);
+
+    const appointment = element.querySelector<HTMLButtonElement>(
+      '[data-calendar-appointment="appointment-demo-001"]',
+    );
+
+    expect(appointment).not.toBeNull();
+
+    appointment!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent)
+      .toContain('appointment-demo-001');
+
+    const confirm = element.querySelector<HTMLButtonElement>(
+      '[data-appointment-confirm]',
+    );
+
+    expect(confirm).not.toBeNull();
+
+    confirm!.click();
+    fixture.detectChanges();
+
+    element.querySelector<HTMLButtonElement>(
+      '[data-appointment-submit-confirmation]',
+    )!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[role="status"]')?.textContent)
+      .toContain('Confirmación registrada correctamente');
   });
 });
