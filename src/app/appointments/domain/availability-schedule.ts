@@ -1,3 +1,4 @@
+
 import { AvailabilityInterval } from '../model/availability';
 import {
   CLINIC_TIME_ZONE,
@@ -57,17 +58,8 @@ export type AvailabilityTimeField =
 const SUPPORTED_WEEK_DAYS: readonly AvailabilityDayKey[] =
   WEEK_DAYS.map(([key]) => key);
 
-const CLINIC_DATE_TIME_FORMATTER =
-  new Intl.DateTimeFormat('en-US', {
-    timeZone: CLINIC_TIME_ZONE,
-    weekday: 'long',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  });
+const CLINIC_DATE_TIME_FORMATTERS =
+  new Map<string, Intl.DateTimeFormat>();
 
 export const DEFAULT_SLOT_DURATION_MINUTES = 30;
 
@@ -89,6 +81,7 @@ export const DEFAULT_WEEKLY_AVAILABILITY: readonly AvailabilityDayDefaults[] =
 
 export function mapAvailabilityIntervalsToWeek(
   intervals: readonly AvailabilityInterval[],
+  timeZone: string = CLINIC_TIME_ZONE,
 ): WeeklyAvailabilitySchedule {
   const schedule: Partial<
     Record<
@@ -99,10 +92,16 @@ export function mapAvailabilityIntervalsToWeek(
 
   for (const interval of intervals) {
     const start =
-      toClinicSchedulePoint(interval.startAt);
+      toClinicSchedulePoint(
+        interval.startAt,
+        timeZone,
+      );
 
     const end =
-      toClinicSchedulePoint(interval.endAt);
+      toClinicSchedulePoint(
+        interval.endAt,
+        timeZone,
+      );
 
     if (!isAvailabilityDayKey(start.dayKey)) {
       continue;
@@ -130,6 +129,7 @@ export function deriveAvailabilitySlotsForDate(
   clinicDate: string,
   blockedIntervals: readonly AvailabilityInterval[] = [],
   durationMinutes = DEFAULT_SLOT_DURATION_MINUTES,
+  timeZone: string = CLINIC_TIME_ZONE,
 ): readonly AvailabilitySlot[] {
   const durationMilliseconds =
     durationMinutes * 60 * 1000;
@@ -174,6 +174,7 @@ export function deriveAvailabilitySlotsForDate(
       const startPoint =
         toClinicSchedulePoint(
           new Date(slotStart).toISOString(),
+          timeZone,
         );
 
       if (startPoint.date !== clinicDate) {
@@ -183,6 +184,7 @@ export function deriveAvailabilitySlotsForDate(
       const endPoint =
         toClinicSchedulePoint(
           new Date(slotEnd).toISOString(),
+          timeZone,
         );
 
       if (endPoint.date !== clinicDate) {
@@ -192,9 +194,11 @@ export function deriveAvailabilitySlotsForDate(
       slots.push({
         startAt: toClinicOffsetDateTime(
           `${startPoint.date}T${startPoint.time}`,
+          timeZone,
         ),
         endAt: toClinicOffsetDateTime(
           `${endPoint.date}T${endPoint.time}`,
+          timeZone,
         ),
         label: startPoint.time,
       });
@@ -212,12 +216,14 @@ export function updateAvailabilityIntervalTime(
   shiftIndex: number,
   field: AvailabilityTimeField,
   time: string,
+  timeZone: string = CLINIC_TIME_ZONE,
 ): readonly AvailabilityInterval[] {
   const matchingIndexes = intervals
     .map((interval, index) => ({
       index,
       point: toClinicSchedulePoint(
         interval.startAt,
+        timeZone,
       ),
     }))
     .filter(
@@ -245,12 +251,14 @@ export function updateAvailabilityIntervalTime(
     const localDate =
       toClinicSchedulePoint(
         interval[field],
+        timeZone,
       ).date;
 
     return {
       ...interval,
       [field]: toClinicOffsetDateTime(
         `${localDate}T${time}`,
+        timeZone,
       ),
     };
   });
@@ -286,6 +294,7 @@ function overlapsBlockedInterval(
 
 function toClinicSchedulePoint(
   value: string,
+  timeZone: string = CLINIC_TIME_ZONE,
 ): {
   readonly dayKey: string;
   readonly date: string;
@@ -299,8 +308,11 @@ function toClinicSchedulePoint(
     );
   }
 
+  const formatter =
+    getClinicDateTimeFormatter(timeZone);
+
   const parts = Object.fromEntries(
-    CLINIC_DATE_TIME_FORMATTER
+    formatter
       .formatToParts(instant)
       .map((part) => [
         part.type,
@@ -315,6 +327,36 @@ function toClinicSchedulePoint(
     time:
       `${parts['hour']}:${parts['minute']}`,
   };
+}
+
+function getClinicDateTimeFormatter(
+  timeZone: string,
+): Intl.DateTimeFormat {
+  const existingFormatter =
+    CLINIC_DATE_TIME_FORMATTERS.get(timeZone);
+
+  if (existingFormatter) {
+    return existingFormatter;
+  }
+
+  const formatter =
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'long',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+
+  CLINIC_DATE_TIME_FORMATTERS.set(
+    timeZone,
+    formatter,
+  );
+
+  return formatter;
 }
 
 function isAvailabilityDayKey(
