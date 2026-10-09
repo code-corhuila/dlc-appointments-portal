@@ -130,7 +130,10 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="checkbox"
                   [id]="day.key + '-enabled'"
                   [checked]="isDayEnabled(day.key)"
-                  [disabled]="availabilitySaving()"
+                  [disabled]="
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
+                  "
                   (change)="
                     setDayEnabled(
                       day.key,
@@ -144,6 +147,14 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                 </label>
               </div>
 
+              @if (hasMultipleDatesForDay(day.key)) {
+                <p data-multiple-dates-warning role="status">
+                  Este día contiene horarios de fechas diferentes.
+                  Para evitar modificaciones accidentales, sus
+                  controles semanales están bloqueados.
+                </p>
+              }
+
               <div class="shift-row">
                 <strong class="shift-badge">Turno 1:</strong>
 
@@ -156,7 +167,11 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftStart(day, 0)"
                   data-shift-one-start
-                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
+                  "
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -176,7 +191,11 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   type="time"
                   [value]="shiftEnd(day, 0)"
                   data-shift-one-end
-                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
+                  "
                   (change)="
                     updateShiftTime(
                       day.key,
@@ -196,6 +215,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   [disabled]="
                     !isDayEnabled(day.key) ||
                     availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key) ||
                     (hasLoadedAvailability() && !hasSecondShift(day))
                   "
                   (change)="
@@ -226,7 +246,8 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   [disabled]="
                     !isDayEnabled(day.key) ||
                     !isSecondShiftEnabled(day) ||
-                    availabilitySaving()
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
                   "
                   (change)="
                     updateShiftTime(
@@ -250,7 +271,8 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                   [disabled]="
                     !isDayEnabled(day.key) ||
                     !isSecondShiftEnabled(day) ||
-                    availabilitySaving()
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
                   "
                   (change)="
                     updateShiftTime(
@@ -271,7 +293,11 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                 <select
                   [id]="day.key + '-slot-duration'"
                   data-slot-duration
-                  [disabled]="!isDayEnabled(day.key) || availabilitySaving()"
+                  [disabled]="
+                    !isDayEnabled(day.key) ||
+                    availabilitySaving() ||
+                    hasMultipleDatesForDay(day.key)
+                  "
                 >
                   <option [value]="slotDurationMinutes">
                     {{ slotDurationMinutes }} Min
@@ -601,13 +627,11 @@ export class AvailabilityPageComponent {
         ),
       );
 
-      // Enable the new interval's day so saving does not discard it.
       this.enabledDays.update((current) => ({
         ...current,
         [dayKey]: true,
       }));
 
-      // Include a newly added second shift in the next save request.
       this.disabledSecondShifts.update((current) => ({
         ...current,
         [dayKey]: false,
@@ -639,7 +663,8 @@ export class AvailabilityPageComponent {
     if (
       !this.loadedAvailability ||
       this.availabilitySaving() ||
-      !this.isDayEnabled(dayKey)
+      !this.isDayEnabled(dayKey) ||
+      this.hasMultipleDatesForDay(dayKey)
     ) {
       return;
     }
@@ -679,9 +704,19 @@ export class AvailabilityPageComponent {
     }
 
     const dentistId = this.selectedDentistId;
+    const intervals = this.getEnabledIntervals();
+
+    const validationError =
+      this.validateAvailabilityIntervals(intervals);
+
+    if (validationError) {
+      this.clearSaveFeedback();
+      this.availabilitySaveError.set(validationError);
+      return;
+    }
 
     const request: UpdateDentistAvailabilityRequest = {
-      intervals: this.getEnabledIntervals(),
+      intervals,
       blockedIntervals: this.loadedAvailability.blockedIntervals,
       expectedVersion: this.loadedAvailability.version,
     };
@@ -752,6 +787,78 @@ export class AvailabilityPageComponent {
       });
   }
 
+  private validateAvailabilityIntervals(
+    intervals: readonly AvailabilityInterval[],
+  ): string | null {
+    const sorted = intervals
+      .map((interval) => ({
+        start: new Date(interval.startAt).getTime(),
+        end: new Date(interval.endAt).getTime(),
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    for (const interval of sorted) {
+      if (
+        !Number.isFinite(interval.start) ||
+        !Number.isFinite(interval.end) ||
+        interval.start >= interval.end
+      ) {
+        return 'Existe un intervalo con un horario inválido. Revise las horas de inicio y finalización.';
+      }
+    }
+
+    for (let index = 1; index < sorted.length; index++) {
+      if (sorted[index].start < sorted[index - 1].end) {
+        return 'Existe una superposición o conflicto entre intervalos de disponibilidad.';
+      }
+    }
+
+    return null;
+  }
+
+  protected hasMultipleDatesForDay(
+    dayKey: string,
+  ): boolean {
+    if (!this.loadedAvailability) {
+      return false;
+    }
+
+    const formatter = new Intl.DateTimeFormat(
+      'en-CA',
+      {
+        timeZone: this.clinicTimeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      },
+    );
+
+    const dates = new Set<string>();
+
+    for (const interval of this.loadedAvailability.intervals) {
+      const schedule = mapAvailabilityIntervalsToWeek(
+        [interval],
+        this.clinicTimeZone,
+      );
+
+      if (Object.keys(schedule)[0] !== dayKey) {
+        continue;
+      }
+
+      dates.add(
+        formatter.format(
+          new Date(interval.startAt),
+        ),
+      );
+
+      if (dates.size > 1) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   protected shiftStart(
     day: AvailabilityDayDefaults,
     index: number,
@@ -819,7 +926,8 @@ export class AvailabilityPageComponent {
       !this.hasLoadedAvailability() ||
       !this.isDayEnabled(day.key) ||
       !this.hasSecondShift(day) ||
-      this.availabilitySaving()
+      this.availabilitySaving() ||
+      this.hasMultipleDatesForDay(day.key)
     ) {
       return;
     }
@@ -840,7 +948,10 @@ export class AvailabilityPageComponent {
     day: string,
     enabled: boolean,
   ): void {
-    if (this.availabilitySaving()) {
+    if (
+      this.availabilitySaving() ||
+      this.hasMultipleDatesForDay(day)
+    ) {
       return;
     }
 
@@ -887,6 +998,11 @@ export class AvailabilityPageComponent {
     const excludedIndexes = new Set<number>();
 
     for (const day of this.weekDays) {
+      // Weekly controls must not discard intervals from other dates.
+      if (this.hasMultipleDatesForDay(day.key)) {
+        continue;
+      }
+
       const dayEntries = entries
         .filter((entry) => entry.dayKey === day.key)
         .sort(
