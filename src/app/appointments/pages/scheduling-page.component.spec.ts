@@ -1,3 +1,4 @@
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
@@ -584,8 +585,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -673,8 +673,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -773,8 +772,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -831,6 +829,78 @@ describe('SchedulingPageComponent', () => {
     ).toContain('Confirmar Cita');
   });
 
+  it('shows appointment conflict feedback for a normalized ApiError', () => {
+    appointmentCreationResponse = throwError(() => ({
+      error: 'APPOINTMENT_CONFLICT',
+      message: 'Selected appointment slot is no longer available',
+      traceId: 'trace-direct-conflict',
+    }));
+
+    patientSearchResponse = of({
+      data: [
+        {
+          id: 'patient-123',
+          name: 'Ana Torres',
+          status: 'ACTIVE',
+          version: 1,
+          documentType: 'CC',
+          documentNumber: '123456789',
+          phone: '3001234567',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+
+    searchPatient('Ana');
+
+    const element = fixture.nativeElement as HTMLElement;
+    const patientResult =
+      element.querySelector<HTMLButtonElement>(
+        '[data-patient-result]',
+      );
+
+    expect(patientResult).not.toBeNull();
+    patientResult?.click();
+    fixture.detectChanges();
+
+    selectDentist('dentist-123');
+    selectDate('2026-10-05');
+
+    const firstSlot =
+      element.querySelector<HTMLButtonElement>(
+        '[data-available-slot]',
+      );
+
+    expect(firstSlot).not.toBeNull();
+    firstSlot?.click();
+    fixture.detectChanges();
+
+    const confirmButton =
+      element.querySelector<HTMLButtonElement>(
+        '[data-confirm-appointment]',
+      );
+
+    expect(confirmButton).not.toBeNull();
+    confirmButton?.click();
+    fixture.detectChanges();
+
+    expect(appointmentCreations).toHaveLength(1);
+
+    const feedback = element.querySelector(
+      '[data-appointment-error]',
+    );
+
+    expect(feedback).not.toBeNull();
+    expect(feedback?.textContent).toContain(
+      'Ese horario ya no está disponible. Seleccione otro horario.',
+    );
+  });
+
   it('shows validation feedback when appointment creation is rejected', () => {
     appointmentCreationResponse = throwError(
       () =>
@@ -868,8 +938,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -965,8 +1034,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -1062,8 +1130,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
@@ -1173,8 +1240,7 @@ describe('SchedulingPageComponent', () => {
 
     searchPatient('Ana');
 
-    const element =
-      fixture.nativeElement as HTMLElement;
+    const element = fixture.nativeElement as HTMLElement;
 
     const patientResult =
       element.querySelector<HTMLButtonElement>(
