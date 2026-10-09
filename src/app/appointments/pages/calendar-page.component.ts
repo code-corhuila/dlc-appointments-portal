@@ -9,8 +9,12 @@ import {
 import {
   CALENDAR_SUPPORT_DATA_SOURCE,
 } from '../data/calendar-support-data-source';
+import { CalendarAppointmentDemoService } from '../data/calendar-appointment-demo.service';
+import { AppointmentsApiService } from '../data/appointments-api.service';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
+import { Appointment } from '../model/appointment';
+import { AppointmentActionsComponent } from './appointment-actions.component';
 
 const MONTH_NAMES = [
   'enero',
@@ -31,6 +35,13 @@ const MONTH_NAMES = [
   selector: 'app-calendar-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [AppointmentActionsComponent],
+  providers: [
+    {
+      provide: AppointmentsApiService,
+      useClass: CalendarAppointmentDemoService,
+    },
+  ],
   styleUrl: './calendar-page.component.css',
   template: `
     <main class="calendar-page">
@@ -110,12 +121,42 @@ const MONTH_NAMES = [
                   data-calendar-day
                   [attr.data-date]="day.date"
                   [attr.data-current-month]="day.isCurrentMonth"
+                  [attr.data-calendar-appointment]="appointmentForDate(day.date)?.id ?? null"
+                  [attr.aria-label]="appointmentForDate(day.date) ? 'Seleccionar cita de demostración' : null"
+                  (click)="selectAppointmentForDate(day.date)"
                 >
                   {{ dayNumber(day.date) }}
+
+                  @if (appointmentForDate(day.date)) {
+                    <span class="calendar-appointment-label">
+                      Cita demostración
+                    </span>
+                  }
                 </button>
               }
             </div>
           </section>
+
+          @if (selectedAppointment(); as appointment) {
+            <section
+              class="calendar-panel selected-appointment-panel"
+              data-selected-appointment
+              data-demo-fixture
+            >
+              <h2>Cita seleccionada</h2>
+              <p>Demostración visual con datos simulados.</p>
+              <dl>
+                <div><dt>Referencia</dt><dd>{{ appointment.id }}</dd></div>
+                <div><dt>Estado</dt><dd>{{ appointment.status }}</dd></div>
+                <div><dt>Horario</dt><dd>{{ appointment.startAt }}</dd></div>
+              </dl>
+
+              <app-appointment-actions
+                [appointment]="appointment"
+                [canManage]="true"
+              />
+            </section>
+          }
         </div>
 
         <aside
@@ -226,6 +267,11 @@ export class CalendarPageComponent {
   readonly waitingList =
     this.supportDataSource.waitingList;
 
+  readonly appointments =
+    this.supportDataSource.appointments;
+
+  readonly selectedAppointment = signal<Appointment | null>(null);
+
   private readonly anchorDate = signal('2026-10-15');
 
   readonly view = signal<CalendarView>('month');
@@ -254,6 +300,16 @@ export class CalendarPageComponent {
 
   dayNumber(date: string): number {
     return Number(date.slice(-2));
+  }
+
+  appointmentForDate(date: string): Appointment | undefined {
+    return this.appointments.find((appointment) =>
+      appointment.startAt.startsWith(date),
+    );
+  }
+
+  selectAppointmentForDate(date: string): void {
+    this.selectedAppointment.set(this.appointmentForDate(date) ?? null);
   }
 
   private navigatePeriod(direction: -1 | 1): void {
