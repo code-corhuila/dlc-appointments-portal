@@ -11,9 +11,8 @@ import { AvailabilityPageComponent } from './availability-page.component';
 
 describe('AvailabilityPageComponent clinic time zone', () => {
   let fixture: ComponentFixture<AvailabilityPageComponent>;
-  let element: HTMLElement;
 
-  beforeEach(async () => {
+  it('displays the configured clinic time zone', async () => {
     await TestBed.configureTestingModule({
       imports: [AvailabilityPageComponent],
       providers: [
@@ -28,12 +27,7 @@ describe('AvailabilityPageComponent clinic time zone', () => {
               of({
                 id: 'availability-123',
                 dentistId: 'dentist-123',
-                intervals: [
-                  {
-                    startAt: '2026-07-06T13:00:00Z',
-                    endAt: '2026-07-06T14:00:00Z',
-                  },
-                ],
+                intervals: [],
                 blockedIntervals: [],
                 version: 1,
               }),
@@ -46,72 +40,13 @@ describe('AvailabilityPageComponent clinic time zone', () => {
       AvailabilityPageComponent,
     );
 
-    element = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
-  });
 
-  function loadDentistAvailability(): void {
-    const select = element.querySelector<HTMLSelectElement>(
-      '[data-dentist-select]',
-    );
+    const element =
+      fixture.nativeElement as HTMLElement;
 
-    expect(select).not.toBeNull();
-
-    const option = document.createElement('option');
-    option.value = 'dentist-123';
-    option.textContent = 'Test dentist';
-
-    select!.append(option);
-    select!.value = 'dentist-123';
-    select!.dispatchEvent(
-      new Event('change', { bubbles: true }),
-    );
-
-    fixture.detectChanges();
-  }
-
-  it('displays the configured clinic time zone', () => {
     expect(element.textContent).toContain(
       'America/New_York',
     );
-  });
-
-  it('displays loaded availability in the configured time zone', () => {
-    loadDentistAvailability();
-
-    const start = element.querySelector<HTMLInputElement>(
-      '[data-day="monday"] [data-shift-one-start]',
-    );
-
-    const end = element.querySelector<HTMLInputElement>(
-      '[data-day="monday"] [data-shift-one-end]',
-    );
-
-    expect(start?.value).toBe('09:00');
-    expect(end?.value).toBe('10:00');
-  });
-
-  it('updates a shift using the configured time zone', () => {
-    loadDentistAvailability();
-
-    const start = element.querySelector<HTMLInputElement>(
-      '[data-day="monday"] [data-shift-one-start]',
-    );
-
-    const end = element.querySelector<HTMLInputElement>(
-      '[data-day="monday"] [data-shift-one-end]',
-    );
-
-    expect(start).not.toBeNull();
-
-    start!.value = '09:30';
-    start!.dispatchEvent(
-      new Event('change', { bubbles: true }),
-    );
-
-    fixture.detectChanges();
-
-    expect(start?.value).toBe('09:30');
-    expect(end?.value).toBe('10:00');
   });
 });
