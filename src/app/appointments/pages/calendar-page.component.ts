@@ -129,7 +129,7 @@ const MONTH_NAMES = [
 
                   @if (appointmentForDate(day.date)) {
                     <span class="calendar-appointment-label">
-                      Cita demostración
+                      {{ appointmentForDate(day.date)?.status }}
                     </span>
                   }
                 </button>
@@ -154,6 +154,8 @@ const MONTH_NAMES = [
               <app-appointment-actions
                 [appointment]="appointment"
                 [canManage]="true"
+                [now]="demoNow"
+                (appointmentUpdated)="updateAppointment($event)"
               />
             </section>
           }
@@ -267,10 +269,12 @@ export class CalendarPageComponent {
   readonly waitingList =
     this.supportDataSource.waitingList;
 
-  readonly appointments =
-    this.supportDataSource.appointments;
+  readonly appointments = signal(
+    this.supportDataSource.appointments,
+  );
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  readonly demoNow = new Date('2026-10-09T14:00:00-05:00');
 
   private readonly anchorDate = signal('2026-10-15');
 
@@ -303,13 +307,24 @@ export class CalendarPageComponent {
   }
 
   appointmentForDate(date: string): Appointment | undefined {
-    return this.appointments.find((appointment) =>
+    return this.appointments().find((appointment) =>
       appointment.startAt.startsWith(date),
     );
   }
 
   selectAppointmentForDate(date: string): void {
     this.selectedAppointment.set(this.appointmentForDate(date) ?? null);
+  }
+
+  updateAppointment(updatedAppointment: Appointment): void {
+    this.appointments.update((appointments) =>
+      appointments.map((appointment) =>
+        appointment.id === updatedAppointment.id
+          ? updatedAppointment
+          : appointment,
+      ),
+    );
+    this.selectedAppointment.set(updatedAppointment);
   }
 
   private navigatePeriod(direction: -1 | 1): void {

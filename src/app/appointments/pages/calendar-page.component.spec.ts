@@ -331,4 +331,42 @@ describe('CalendarPageComponent', () => {
     expect(element.querySelector('[role="status"]')?.textContent)
       .toContain('Confirmación registrada correctamente');
   });
+
+  it('cancels an eligible demonstration appointment without a backend request', () => {
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>(
+      '[data-calendar-appointment="appointment-demo-001"]',
+    )!.click();
+    fixture.detectChanges();
+
+    const cancel = element.querySelector<HTMLButtonElement>(
+      '[data-appointment-cancel]',
+    );
+
+    expect(cancel).not.toBeNull();
+
+    cancel!.click();
+    fixture.detectChanges();
+
+    const reason = element.querySelector<HTMLInputElement>(
+      '[data-cancellation-reason]',
+    );
+
+    reason!.value = 'Solicitud del paciente';
+    reason!.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+
+    element.querySelector<HTMLButtonElement>(
+      '[data-appointment-submit-cancellation]',
+    )!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent)
+      .toContain('CANCELADA');
+    expect(element.querySelector(
+      '[data-calendar-appointment="appointment-demo-001"]',
+    )?.textContent).toContain('CANCELADA');
+    expect(element.querySelector('[data-appointment-cancel]')).toBeNull();
+  });
 });
