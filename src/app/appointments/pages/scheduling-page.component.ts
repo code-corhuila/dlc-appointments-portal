@@ -13,6 +13,10 @@ import {
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import {
+  DENTIST_DIRECTORY,
+  DentistDirectoryItem,
+} from '../data/dentist-directory';
 import { PatientsLookupService } from '../data/patients-lookup.service';
 import {
   AvailabilitySlot,
@@ -68,6 +72,9 @@ export class SchedulingPageComponent {
   private readonly patients =
     inject(PatientsLookupService);
 
+  private readonly dentistDirectory =
+    inject(DENTIST_DIRECTORY);
+
   private readonly destroyRef =
     inject(DestroyRef);
 
@@ -92,6 +99,9 @@ export class SchedulingPageComponent {
 
   protected readonly dateOptions =
     buildUpcomingDateOptions();
+
+  protected readonly dentists =
+    signal<readonly DentistDirectoryItem[]>([]);
 
   readonly patientResults =
     signal<readonly PatientView[]>([]);
@@ -134,6 +144,24 @@ export class SchedulingPageComponent {
 
   readonly appointmentSuccess =
     signal<string | null>(null);
+
+  constructor() {
+    this.dentistDirectory
+      .listDentists()
+      .pipe(
+        takeUntilDestroyed(
+          this.destroyRef,
+        ),
+      )
+      .subscribe({
+        next: (dentists) => {
+          this.dentists.set(dentists);
+        },
+        error: () => {
+          this.dentists.set([]);
+        },
+      });
+  }
 
   protected searchPatients(
     search: string,
