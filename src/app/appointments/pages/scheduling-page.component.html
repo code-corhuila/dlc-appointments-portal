@@ -1,3 +1,4 @@
+
 <main class="scheduling-page">
   <header class="page-header">
     <h1>Agendar Nueva Cita</h1>
@@ -255,47 +256,21 @@
           <option value="">
             Seleccione un odontólogo
           </option>
+
+          @for (dentist of dentists(); track dentist.id) {
+            <option [value]="dentist.id">
+              {{ dentist.name }}
+            </option>
+          }
         </select>
 
-        <div
-          class="specialist-options"
-          aria-label="Especialistas disponibles">
-          <button
-            type="button"
-            class="specialist-option"
-            disabled>
-            <span
-              class="specialist-photo"
-              aria-hidden="true">
-              👨‍⚕️
-            </span>
-
-            <span class="specialist-info">
-              <strong>Dr. Martín Torres</strong>
-              <span>Odontología General</span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            class="specialist-option"
-            disabled>
-            <span
-              class="specialist-photo"
-              aria-hidden="true">
-              👩‍⚕️
-            </span>
-
-            <span class="specialist-info">
-              <strong>Dra. Elena Silva</strong>
-              <span>Ortodoncia</span>
-            </span>
-          </button>
-        </div>
-
-        <p class="specialist-helper">
-          La selección real se habilitará desde el directorio autorizado de odontólogos.
-        </p>
+        @if (dentists().length === 0) {
+          <p
+            class="specialist-helper"
+            data-dentist-directory-empty>
+            No hay odontólogos disponibles en el directorio autorizado.
+          </p>
+        }
       </section>
 
       <section class="form-card notes-section">
