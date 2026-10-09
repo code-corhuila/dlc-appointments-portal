@@ -47,6 +47,9 @@ const APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE =
 const APPOINTMENT_LOCAL_VALIDATION_MESSAGE =
   'Seleccione un paciente, un odontólogo y un horario antes de continuar.';
 
+const APPOINTMENT_GENERIC_ERROR_MESSAGE =
+  'No fue posible agendar la cita. Intente nuevamente.';
+
 const APPOINTMENT_SUCCESS_MESSAGE =
   'Cita agendada correctamente.';
 
@@ -350,6 +353,12 @@ export class SchedulingPageComponent {
             case 'SERVICE_UNAVAILABLE':
               this.appointmentError.set(
                 APPOINTMENT_SERVICE_UNAVAILABLE_MESSAGE,
+              );
+              break;
+
+            default:
+              this.appointmentError.set(
+                APPOINTMENT_GENERIC_ERROR_MESSAGE,
               );
               break;
           }
