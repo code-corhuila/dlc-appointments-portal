@@ -91,17 +91,15 @@ export function mapAvailabilityIntervalsToWeek(
   > = {};
 
   for (const interval of intervals) {
-    const start =
-      toClinicSchedulePoint(
-        interval.startAt,
-        timeZone,
-      );
+    const start = toClinicSchedulePoint(
+      interval.startAt,
+      timeZone,
+    );
 
-    const end =
-      toClinicSchedulePoint(
-        interval.endAt,
-        timeZone,
-      );
+    const end = toClinicSchedulePoint(
+      interval.endAt,
+      timeZone,
+    );
 
     if (!isAvailabilityDayKey(start.dayKey)) {
       continue;
@@ -137,11 +135,8 @@ export function deriveAvailabilitySlotsForDate(
   const slots: AvailabilitySlot[] = [];
 
   for (const interval of intervals) {
-    const startInstant =
-      new Date(interval.startAt);
-
-    const endInstant =
-      new Date(interval.endAt);
+    const startInstant = new Date(interval.startAt);
+    const endInstant = new Date(interval.endAt);
 
     if (
       Number.isNaN(startInstant.getTime()) ||
@@ -171,21 +166,19 @@ export function deriveAvailabilitySlotsForDate(
         continue;
       }
 
-      const startPoint =
-        toClinicSchedulePoint(
-          new Date(slotStart).toISOString(),
-          timeZone,
-        );
+      const startPoint = toClinicSchedulePoint(
+        new Date(slotStart).toISOString(),
+        timeZone,
+      );
 
       if (startPoint.date !== clinicDate) {
         continue;
       }
 
-      const endPoint =
-        toClinicSchedulePoint(
-          new Date(slotEnd).toISOString(),
-          timeZone,
-        );
+      const endPoint = toClinicSchedulePoint(
+        new Date(slotEnd).toISOString(),
+        timeZone,
+      );
 
       if (endPoint.date !== clinicDate) {
         continue;
@@ -236,8 +229,7 @@ export function updateAvailabilityIntervalTime(
       ),
     );
 
-  const target =
-    matchingIndexes[shiftIndex];
+  const target = matchingIndexes[shiftIndex];
 
   if (!target) {
     return intervals;
@@ -248,11 +240,10 @@ export function updateAvailabilityIntervalTime(
       return interval;
     }
 
-    const localDate =
-      toClinicSchedulePoint(
-        interval[field],
-        timeZone,
-      ).date;
+    const localDate = toClinicSchedulePoint(
+      interval[field],
+      timeZone,
+    ).date;
 
     return {
       ...interval,
@@ -262,6 +253,73 @@ export function updateAvailabilityIntervalTime(
       ),
     };
   });
+}
+
+export function addAvailabilityShift(
+  intervals: readonly AvailabilityInterval[],
+  clinicDate: string,
+  startTime: string,
+  endTime: string,
+  timeZone: string = CLINIC_TIME_ZONE,
+): readonly AvailabilityInterval[] {
+  // Convert local clinic times to offset-aware date-times.
+  const startAt = toClinicOffsetDateTime(
+    `${clinicDate}T${startTime}`,
+    timeZone,
+  );
+
+  const endAt = toClinicOffsetDateTime(
+    `${clinicDate}T${endTime}`,
+    timeZone,
+  );
+
+  const newStart = new Date(startAt).getTime();
+  const newEnd = new Date(endAt).getTime();
+
+  // A shift must have a positive duration.
+  if (newStart >= newEnd) {
+    throw new Error(
+      'Shift end time must be after start time',
+    );
+  }
+
+  // Existing shifts cannot overlap the new interval.
+  for (const interval of intervals) {
+    const existingStart =
+      new Date(interval.startAt).getTime();
+
+    const existingEnd =
+      new Date(interval.endAt).getTime();
+
+    if (
+      !Number.isFinite(existingStart) ||
+      !Number.isFinite(existingEnd) ||
+      existingStart >= existingEnd
+    ) {
+      throw new Error(
+        'Invalid existing availability interval',
+      );
+    }
+
+    const overlaps =
+      newStart < existingEnd &&
+      newEnd > existingStart;
+
+    if (overlaps) {
+      throw new Error(
+        'Shift overlaps an existing availability interval',
+      );
+    }
+  }
+
+  // Return a new array without modifying the original data.
+  return [
+    ...intervals,
+    {
+      startAt,
+      endAt,
+    },
+  ];
 }
 
 function overlapsBlockedInterval(
