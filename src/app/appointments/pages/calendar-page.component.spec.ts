@@ -332,6 +332,21 @@ describe('CalendarPageComponent', () => {
       .toContain('Confirmación registrada correctamente');
   });
 
+  it('starts attention after a demonstrated confirmation', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-001"]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-confirm]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-confirmation]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-start-attention]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-attention]')!.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
+  });
+
   it('cancels an eligible demonstration appointment without a backend request', () => {
     const element = fixture.nativeElement as HTMLElement;
 
