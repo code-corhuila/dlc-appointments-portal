@@ -7,13 +7,16 @@ import {
   DestroyRef,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { Appointment } from '../model/appointment';
-import { ConfirmationChannel } from '../model/appointment-operations';
+import {
+  ConfirmationChannel,
+} from '../model/appointment-operations';
 
 @Component({
   selector: 'app-appointment-actions',
@@ -57,6 +60,53 @@ import { ConfirmationChannel } from '../model/appointment-operations';
             Guardar confirmación
           </button>
         }
+
+        @if (canCancel()) {
+          <button
+            type="button"
+            data-appointment-cancel
+            [disabled]="isSubmitting()"
+            (click)="startCancellation()"
+          >
+            Cancelar cita
+          </button>
+
+          @if (isChoosingCancellation()) {
+            <label for="cancellation-reason">
+              Motivo de cancelación
+            </label>
+
+            <input
+              id="cancellation-reason"
+              data-cancellation-reason
+              [value]="cancellationReason()"
+              [disabled]="isSubmitting()"
+              (input)="onCancellationReasonChange($event)"
+            />
+
+            <button
+              type="button"
+              data-appointment-submit-cancellation
+              [disabled]="isSubmitting() || !cancellationReason().trim()"
+              (click)="submitCancellation()"
+            >
+              Confirmar cancelación
+            </button>
+
+            <button
+              type="button"
+              data-appointment-dismiss-cancellation
+              [disabled]="isSubmitting()"
+              (click)="dismissCancellation()"
+            >
+              Volver
+            </button>
+          }
+        } @else if (isCancellationRestricted()) {
+          <p data-cancellation-restriction>
+            La cancelación normal no está disponible dentro de las 24 horas previas a la cita.
+          </p>
+        }
       }
 
       @if (feedback()) {
@@ -76,21 +126,26 @@ export class AppointmentActionsComponent {
   private readonly confirmationFormAppointmentId =
     signal<string | null>(null);
 
+  private readonly cancellationFormAppointmentId =
+    signal<string | null>(null);
+
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
+  readonly now = input<Date>(new Date());
+  readonly appointmentUpdated = output<Appointment>();
 
-  readonly confirmedAppointment = signal<Appointment | null>(null);
+  readonly updatedAppointment = signal<Appointment | null>(null);
 
   readonly currentAppointment = computed(() => {
     const original = this.appointment();
-    const confirmed = this.confirmedAppointment();
+    const updated = this.updatedAppointment();
 
     if (
-      confirmed !== null &&
-      confirmed.id === original.id &&
-      confirmed.version > original.version
+      updated !== null &&
+      updated.id === original.id &&
+      updated.version > original.version
     ) {
-      return confirmed;
+      return updated;
     }
 
     return original;
@@ -102,8 +157,32 @@ export class AppointmentActionsComponent {
       this.appointment().id,
   );
 
+  readonly isChoosingCancellation = computed(
+    () =>
+      this.cancellationFormAppointmentId() ===
+      this.appointment().id,
+  );
+
+  readonly canCancel = computed(() => {
+    const appointment = this.currentAppointment();
+
+    return this.canManage() &&
+      appointment.status === 'PROGRAMADA' &&
+      new Date(appointment.startAt).getTime() - this.now().getTime() >=
+        24 * 60 * 60 * 1000;
+  });
+
+  readonly isCancellationRestricted = computed(() => {
+    const appointment = this.currentAppointment();
+
+    return this.canManage() &&
+      appointment.status === 'PROGRAMADA' &&
+      !this.canCancel();
+  });
+
   readonly isSubmitting = signal(false);
   readonly selectedChannel = signal<ConfirmationChannel>('PHONE');
+  readonly cancellationReason = signal('');
 
   readonly feedback = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
@@ -162,7 +241,8 @@ export class AppointmentActionsComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (updatedAppointment: Appointment) => {
-          this.confirmedAppointment.set(updatedAppointment);
+          this.updatedAppointment.set(updatedAppointment);
+          this.appointmentUpdated.emit(updatedAppointment);
           this.isSubmitting.set(false);
 
           if (
@@ -196,6 +276,74 @@ export class AppointmentActionsComponent {
             this.errorMessage.set(
               'No se pudo confirmar la cita.',
             );
+          }
+        },
+      });
+  }
+
+  startCancellation(): void {
+    if (!this.canCancel() || this.isSubmitting()) {
+      return;
+    }
+
+    this.cancellationFormAppointmentId.set(this.appointment().id);
+  }
+
+  onCancellationReasonChange(event: Event): void {
+    this.cancellationReason.set(
+      (event.target as HTMLInputElement).value,
+    );
+  }
+
+  dismissCancellation(): void {
+    if (!this.isSubmitting()) {
+      this.cancellationFormAppointmentId.set(null);
+      this.cancellationReason.set('');
+    }
+  }
+
+  submitCancellation(): void {
+    const appointment = this.currentAppointment();
+    const reason = this.cancellationReason().trim();
+
+    if (
+      !this.canCancel() ||
+      !this.isChoosingCancellation() ||
+      !reason ||
+      this.isSubmitting()
+    ) {
+      return;
+    }
+
+    this.isSubmitting.set(true);
+    this.feedback.set(null);
+    this.errorMessage.set(null);
+
+    this.api
+      .cancelAppointment(
+        appointment.id,
+        { expectedVersion: appointment.version, reason },
+        crypto.randomUUID(),
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updatedAppointment: Appointment) => {
+          this.updatedAppointment.set(updatedAppointment);
+          this.appointmentUpdated.emit(updatedAppointment);
+          this.isSubmitting.set(false);
+          this.cancellationFormAppointmentId.set(null);
+          this.feedback.set('Cancelación registrada correctamente.');
+        },
+        error: (error: unknown) => {
+          this.isSubmitting.set(false);
+          const status = error instanceof HttpErrorResponse ? error.status : null;
+
+          if (status === 403) {
+            this.errorMessage.set('No tienes permisos para cancelar esta cita.');
+          } else if (status === 409) {
+            this.errorMessage.set('La cita cambió o ya no permite esta acción.');
+          } else {
+            this.errorMessage.set('No se pudo cancelar la cita.');
           }
         },
       });
