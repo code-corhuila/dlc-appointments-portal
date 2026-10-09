@@ -224,6 +224,24 @@ describe('AppointmentActionsComponent', () => {
     expect(confirmAppointment).not.toHaveBeenCalled();
   });
 
+  it('offers attention start for a confirmed appointment', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', {
+      ...appointment,
+      status: 'CONFIRMADA',
+    });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[data-appointment-start-attention]'))
+      .not.toBeNull();
+  });
+
+  it('does not offer attention start for a scheduled appointment', () => {
+    const element = createFixture().nativeElement as HTMLElement;
+    expect(element.querySelector('[data-appointment-start-attention]'))
+      .toBeNull();
+  });
+
   it('submits the required reason and version when cancelling an eligible appointment', () => {
     const element = submitCancellation(createFixture());
 
