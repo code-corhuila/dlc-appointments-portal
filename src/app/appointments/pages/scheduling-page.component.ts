@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,6 +22,7 @@ import { CLINIC_TIME_ZONE } from '../domain/clinic-time';
 import { IdempotencyKeyManager } from '../domain/idempotency-key';
 import { CreateAppointmentRequest } from '../model/appointment';
 import { PatientView } from '../model/patient';
+import { toApiError } from '../model/to-api-error';
 
 interface SchedulingDateOption {
   readonly value: string;
@@ -327,9 +328,7 @@ export class SchedulingPageComponent {
           this.appointmentSuccess.set(null);
 
           const errorCode =
-            this.appointmentErrorCode(
-              error,
-            );
+            toApiError(error).error;
 
           switch (errorCode) {
             case 'APPOINTMENT_CONFLICT':
@@ -373,29 +372,6 @@ export class SchedulingPageComponent {
   private clearAppointmentFeedback(): void {
     this.appointmentError.set(null);
     this.appointmentSuccess.set(null);
-  }
-
-  private appointmentErrorCode(
-    error: unknown,
-  ): string | null {
-    if (
-      !(error instanceof HttpErrorResponse)
-    ) {
-      return null;
-    }
-
-    const body = error.error;
-
-    if (
-      typeof body !== 'object' ||
-      body === null ||
-      !('error' in body) ||
-      typeof body.error !== 'string'
-    ) {
-      return null;
-    }
-
-    return body.error;
   }
 
   private refreshAvailabilitySlots(): void {
