@@ -242,6 +242,15 @@ describe('AppointmentActionsComponent', () => {
       .toBeNull();
   });
 
+  it('offers no-show registration after a scheduled appointment ends', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('now', new Date('2026-10-20T15:00:00Z'));
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector(
+      '[data-appointment-no-show]',
+    )).not.toBeNull();
+  });
+
   it('submits the required reason and version when cancelling an eligible appointment', () => {
     const element = submitCancellation(createFixture());
 
