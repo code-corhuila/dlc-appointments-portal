@@ -16,6 +16,7 @@ import { AppointmentsApiService } from '../data/appointments-api.service';
 import { Appointment } from '../model/appointment';
 import {
   ConfirmationChannel,
+  RescheduleAppointmentRequest,
 } from '../model/appointment-operations';
 
 @Component({
@@ -107,6 +108,18 @@ import {
             La cancelación normal no está disponible dentro de las 24 horas previas a la cita.
           </p>
         }
+
+        @if (canReschedule()) {
+          <button type="button" data-appointment-reschedule [disabled]="isSubmitting()" (click)="startRescheduling()">Reprogramar cita</button>
+          @if (isChoosingRescheduling()) {
+            <label for="rescheduling-start">Nueva fecha y hora</label>
+            <input id="rescheduling-start" data-rescheduling-start type="datetime-local" [value]="reschedulingStart()" [disabled]="isSubmitting()" (input)="reschedulingStart.set($any($event.target).value)" />
+            <label for="rescheduling-reason">Motivo de reprogramación</label>
+            <input id="rescheduling-reason" data-rescheduling-reason [value]="reschedulingReason()" [disabled]="isSubmitting()" (input)="reschedulingReason.set($any($event.target).value)" />
+            <button type="button" data-appointment-submit-rescheduling [disabled]="isSubmitting() || !isValidRescheduling()" (click)="submitRescheduling()">Confirmar reprogramación</button>
+            <button type="button" data-appointment-dismiss-rescheduling [disabled]="isSubmitting()" (click)="dismissRescheduling()">Volver</button>
+          }
+        }
       }
 
       @if (feedback()) {
@@ -128,6 +141,7 @@ export class AppointmentActionsComponent {
 
   private readonly cancellationFormAppointmentId =
     signal<string | null>(null);
+  private readonly reschedulingFormAppointmentId = signal<string | null>(null);
 
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
@@ -183,9 +197,24 @@ export class AppointmentActionsComponent {
   readonly isSubmitting = signal(false);
   readonly selectedChannel = signal<ConfirmationChannel>('PHONE');
   readonly cancellationReason = signal('');
+  readonly reschedulingStart = signal('');
+  readonly reschedulingReason = signal('');
 
   readonly feedback = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+
+  readonly isChoosingRescheduling = computed(() =>
+    this.reschedulingFormAppointmentId() === this.appointment().id,
+  );
+
+  readonly canReschedule = computed(() => this.canCancel());
+
+  readonly isValidRescheduling = computed(() => {
+    const startAt = this.reschedulingStart();
+    return !!this.reschedulingReason().trim() &&
+      !!startAt && new Date(startAt).getTime() > this.now().getTime() &&
+      new Date(startAt).getTime() !== new Date(this.currentAppointment().startAt).getTime();
+  });
 
   startConfirmation(): void {
     if (
@@ -346,6 +375,33 @@ export class AppointmentActionsComponent {
             this.errorMessage.set('No se pudo cancelar la cita.');
           }
         },
+      });
+  }
+
+  startRescheduling(): void {
+    if (!this.canReschedule() || this.isSubmitting()) return;
+    this.reschedulingFormAppointmentId.set(this.appointment().id);
+  }
+
+  dismissRescheduling(): void {
+    if (!this.isSubmitting()) this.reschedulingFormAppointmentId.set(null);
+  }
+
+  submitRescheduling(): void {
+    const appointment = this.currentAppointment();
+    if (!this.canReschedule() || !this.isChoosingRescheduling() || !this.isValidRescheduling() || this.isSubmitting()) return;
+    const startAt = new Date(this.reschedulingStart()).toISOString();
+    const duration = new Date(appointment.endAt).getTime() - new Date(appointment.startAt).getTime();
+    const request: RescheduleAppointmentRequest = {
+      expectedVersion: appointment.version, startAt,
+      endAt: new Date(new Date(startAt).getTime() + duration).toISOString(),
+      reason: this.reschedulingReason().trim(),
+    };
+    this.isSubmitting.set(true); this.feedback.set(null); this.errorMessage.set(null);
+    this.api.rescheduleAppointment(appointment.id, request, crypto.randomUUID())
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.reschedulingFormAppointmentId.set(null); this.feedback.set('Reprogramación registrada correctamente.'); },
+        error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo reprogramar la cita.'); },
       });
   }
 }
