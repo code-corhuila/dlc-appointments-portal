@@ -149,6 +149,23 @@ describe('SchedulingPageComponent', () => {
     ).not.toBeNull();
   });
 
+  it('updates the service summary from the selected demonstration catalog', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const specialty = element.querySelector<HTMLSelectElement>('#specialty');
+
+    specialty!.value = 'general';
+    specialty!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const consultation = element.querySelector<HTMLSelectElement>('#consultation-type');
+    consultation!.value = 'Consulta de valoración';
+    consultation!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-service]')?.textContent)
+      .toContain('Odontología general · Consulta de valoración');
+  });
+
   it('searches active patients and renders matching results', () => {
     patientSearchResponse = of({
       data: [
@@ -188,6 +205,20 @@ describe('SchedulingPageComponent', () => {
     expect(result).not.toBeNull();
     expect(result?.textContent).toContain('Ana Torres');
     expect(result?.textContent).toContain('123456789');
+
+    expect(result?.getAttribute('role')).toBe('option');
+    expect(element.querySelector('[role="listbox"]')).not.toBeNull();
+  });
+
+  it('renders selectable demonstration dentists after selecting a specialty', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const specialty = element.querySelector<HTMLSelectElement>('#specialty');
+
+    specialty!.value = 'general';
+    specialty!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(element.querySelectorAll('[data-demo-dentist]').length).toBeGreaterThan(0);
   });
 
   it('shows loading feedback while patient search is pending', () => {
@@ -1624,6 +1655,20 @@ describe('SchedulingPageComponent', () => {
   ): void {
     const element =
       fixture.nativeElement as HTMLElement;
+
+    const specialty =
+      element.querySelector<HTMLSelectElement>('#specialty');
+
+    specialty!.value = 'general';
+    specialty!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const consultation =
+      element.querySelector<HTMLSelectElement>('#consultation-type');
+
+    consultation!.value = 'Consulta de valoración';
+    consultation!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
 
     const select =
       element.querySelector<HTMLSelectElement>(
