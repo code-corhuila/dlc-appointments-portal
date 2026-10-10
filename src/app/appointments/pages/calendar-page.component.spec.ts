@@ -347,6 +347,42 @@ describe('CalendarPageComponent', () => {
     expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
   });
 
+  it('completes an attention appointment and synchronizes Calendar', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const id = 'appointment-demo-completion-001';
+
+    element.querySelector<HTMLButtonElement>(`[data-calendar-appointment="${id}"]`)!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('FINALIZADA');
+    expect(element.querySelector(`[data-calendar-appointment="${id}"]`)?.textContent).toContain('FINALIZADA');
+    expect(element.querySelector('[data-appointment-complete]')).toBeNull();
+    expect(fixture.componentInstance.appointments().filter((appointment) => appointment.id === id)).toHaveLength(1);
+    expect(fixture.componentInstance.selectedAppointment()).toMatchObject({
+      id, startAt: '2026-10-16T14:00:00-05:00', endAt: '2026-10-16T14:30:00-05:00',
+    });
+  });
+
+  it('preserves the appointment when the completion demo is rejected', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const id = 'appointment-demo-completion-rejected-001';
+
+    element.querySelector<HTMLButtonElement>(`[data-calendar-appointment="${id}"]`)!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('No se pudo finalizar la atención');
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
+    expect(element.querySelector(`[data-calendar-appointment="${id}"]`)?.textContent).toContain('EN_ATENCION');
+  });
+
   it('registers a no-show for a completed demonstration appointment', () => {
     const element = fixture.nativeElement as HTMLElement;
     element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-no-show-001"]')!.click();

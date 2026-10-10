@@ -22,6 +22,7 @@ describe('AppointmentActionsComponent', () => {
 
   const confirmAppointment = vi.fn();
   const cancelAppointment = vi.fn();
+  const completeAppointment = vi.fn();
 
   function createFixture(): ComponentFixture<AppointmentActionsComponent> {
     const fixture = TestBed.createComponent(
@@ -101,6 +102,7 @@ describe('AppointmentActionsComponent', () => {
   beforeEach(async () => {
     confirmAppointment.mockReset();
     cancelAppointment.mockReset();
+    completeAppointment.mockReset();
     confirmAppointment.mockReturnValue(
       of({
         ...appointment,
@@ -112,12 +114,15 @@ describe('AppointmentActionsComponent', () => {
     cancelAppointment.mockReturnValue(
       of({ ...appointment, status: 'CANCELADA', version: 2 }),
     );
+    completeAppointment.mockReturnValue(
+      of({ ...appointment, status: 'FINALIZADA', version: 2 }),
+    );
 
     await TestBed.configureTestingModule({
       imports: [AppointmentActionsComponent],
       providers: [{
         provide: AppointmentsApiService,
-        useValue: { confirmAppointment, cancelAppointment },
+        useValue: { confirmAppointment, cancelAppointment, completeAppointment },
       }],
     }).compileComponents();
   });
@@ -249,6 +254,101 @@ describe('AppointmentActionsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector(
       '[data-appointment-no-show]',
     )).not.toBeNull();
+  });
+
+  it('offers completion for an appointment in attention', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'EN_ATENCION' });
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector(
+      '[data-appointment-complete]',
+    )).not.toBeNull();
+  });
+
+  it.each(['PROGRAMADA', 'CONFIRMADA', 'FINALIZADA', 'CANCELADA', 'NO_ASISTIO'] as const)(
+    'does not offer completion from %s',
+    (status) => {
+      const fixture = createFixture();
+      fixture.componentRef.setInput('appointment', { ...appointment, status });
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector(
+        '[data-appointment-complete]',
+      )).toBeNull();
+    },
+  );
+
+  it('submits completion only after explicit confirmation', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'EN_ATENCION' });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    expect(completeAppointment).not.toHaveBeenCalled();
+
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(completeAppointment).toHaveBeenCalledWith(
+      'appointment-001', { expectedVersion: 1 }, expect.any(String),
+    );
+    expect(element.querySelector('[data-appointment-complete]')).toBeNull();
+    expect(element.querySelector('[role="status"]')?.textContent).toContain('Atención finalizada');
+  });
+
+  it('dismisses completion without changing the appointment', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'EN_ATENCION' });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-dismiss-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(completeAppointment).not.toHaveBeenCalled();
+    expect(element.querySelector('[data-appointment-complete]')).not.toBeNull();
+  });
+
+  it.each([403, 409])('preserves attention when completion returns %s', (status) => {
+    completeAppointment.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status })),
+    );
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'EN_ATENCION' });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('No se pudo finalizar');
+    expect(element.querySelector('[data-appointment-complete]')).not.toBeNull();
+  });
+
+  it('prevents duplicate completion requests while pending', () => {
+    const response = new Subject<Appointment>();
+    completeAppointment.mockReturnValue(response);
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'EN_ATENCION' });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    const submit = element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!;
+    submit.click();
+    submit.click();
+    fixture.detectChanges();
+
+    expect(completeAppointment).toHaveBeenCalledOnce();
+    expect(submit.disabled).toBe(true);
+    response.complete();
   });
 
   it('submits the required reason and version when cancelling an eligible appointment', () => {

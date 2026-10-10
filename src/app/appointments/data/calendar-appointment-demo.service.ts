@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 
 import { Appointment } from '../model/appointment';
 import {
   CancelAppointmentRequest,
   ConfirmAppointmentRequest,
+  ExpectedVersionRequest,
   RescheduleAppointmentRequest,
   NoShowAppointmentRequest,
 } from '../model/appointment-operations';
@@ -83,6 +84,30 @@ export class CalendarAppointmentDemoService {
       reason: request.reason,
       status: 'NO_ASISTIO',
       confirmationStatus: 'PENDING',
+      version: request.expectedVersion + 1,
+    });
+  }
+
+  completeAppointment(
+    id: string,
+    request: ExpectedVersionRequest,
+    _idempotencyKey: string,
+  ): Observable<Appointment> {
+    if (id === 'appointment-demo-completion-rejected-001') {
+      return throwError(
+        () => new Error('La demostración simula un rechazo de Appointments API.'),
+      );
+    }
+
+    return of({
+      id,
+      patientId: 'patient-demo-003',
+      dentistId: 'dentist-demo-001',
+      startAt: '2026-10-16T14:00:00-05:00',
+      endAt: '2026-10-16T14:30:00-05:00',
+      reason: 'Control preventivo',
+      status: 'FINALIZADA',
+      confirmationStatus: 'CONFIRMED',
       version: request.expectedVersion + 1,
     });
   }
