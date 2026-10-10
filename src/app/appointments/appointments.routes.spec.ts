@@ -1,5 +1,6 @@
 import { CalendarPageComponent } from './pages/calendar-page.component';
 import { DentistOwnCalendarComponent } from './pages/dentist-own-calendar.component';
+import { ClinicalAssignmentsPageComponent } from './pages/clinical-assignments-page.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
 import { SchedulingPageComponent } from './pages/scheduling-page.component';
@@ -7,6 +8,11 @@ import { AvailabilityPageComponent } from './pages/availability-page.component';
 import { APPOINTMENTS_ROUTES } from './appointments.routes';
 
 describe('APPOINTMENTS_ROUTES', () => {
+  it('provides the clinical assignments route', () => {
+    expect(APPOINTMENTS_ROUTES.find((route) => route.path === 'clinical-assignments')?.component)
+      .toBe(ClinicalAssignmentsPageComponent);
+  });
+
   it('provides the calendar page route', () => {
     const calendarRoute = APPOINTMENTS_ROUTES.find(
       (route) => route.path === 'calendar',
