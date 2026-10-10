@@ -5,6 +5,7 @@ import { Appointment } from '../model/appointment';
 import {
   CancelAppointmentRequest,
   ConfirmAppointmentRequest,
+  RescheduleAppointmentRequest,
 } from '../model/appointment-operations';
 
 @Injectable()
@@ -43,5 +44,9 @@ export class CalendarAppointmentDemoService {
       confirmationStatus: 'PENDING',
       version: request.expectedVersion + 1,
     });
+  }
+
+  rescheduleAppointment(id: string, request: RescheduleAppointmentRequest, _idempotencyKey: string): Observable<Appointment> {
+    return of({ id, patientId: 'patient-demo-001', dentistId: 'dentist-demo-001', startAt: request.startAt, endAt: request.endAt, reason: request.reason, status: 'PROGRAMADA', confirmationStatus: 'PENDING', version: request.expectedVersion + 1 });
   }
 }
