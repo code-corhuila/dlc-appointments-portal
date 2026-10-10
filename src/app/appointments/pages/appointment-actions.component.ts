@@ -129,6 +129,13 @@ import {
           <button type="button" data-appointment-dismiss-attention [disabled]="isSubmitting()" (click)="attentionFormId.set(null)">Volver</button>
         }
       }
+      @if (currentAppointment().status === 'EN_ATENCION' && canManage()) {
+        <button type="button" data-appointment-complete [disabled]="isSubmitting()" (click)="completionFormId.set(appointment().id)">Finalizar atención</button>
+        @if (isChoosingCompletion()) {
+          <button type="button" data-appointment-submit-completion [disabled]="isSubmitting()" (click)="submitCompletion()">Confirmar finalización</button>
+          <button type="button" data-appointment-dismiss-completion (click)="completionFormId.set(null)">Volver</button>
+        }
+      }
       @if (canNoShow()) {
         <button type="button" data-appointment-no-show [disabled]="isSubmitting()" (click)="noShowFormId.set(appointment().id)">Registrar inasistencia</button>
         @if (isChoosingNoShow()) {
@@ -160,6 +167,7 @@ export class AppointmentActionsComponent {
   private readonly reschedulingFormAppointmentId = signal<string | null>(null);
   readonly attentionFormId = signal<string | null>(null);
   readonly noShowFormId = signal<string | null>(null);
+  readonly completionFormId = signal<string | null>(null);
 
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
@@ -236,6 +244,7 @@ export class AppointmentActionsComponent {
   });
   readonly isChoosingAttention = computed(() => this.attentionFormId() === this.appointment().id);
   readonly isChoosingNoShow = computed(() => this.noShowFormId() === this.appointment().id);
+  readonly isChoosingCompletion = computed(() => this.completionFormId() === this.appointment().id);
   readonly canNoShow = computed(() => {
     const appointment = this.currentAppointment();
     return this.canManage() && (appointment.status === 'PROGRAMADA' || appointment.status === 'CONFIRMADA') && !Number.isNaN(new Date(appointment.endAt).getTime()) && this.now().getTime() >= new Date(appointment.endAt).getTime();
@@ -447,6 +456,15 @@ export class AppointmentActionsComponent {
     this.isSubmitting.set(true); this.api.markNoShow(appointment.id, { expectedVersion: appointment.version, reason }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.noShowFormId.set(null); this.feedback.set('Inasistencia registrada correctamente.'); },
       error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo registrar la inasistencia.'); },
+    });
+  }
+
+  submitCompletion(): void {
+    const appointment = this.currentAppointment();
+    if (!this.isChoosingCompletion() || appointment.status !== 'EN_ATENCION' || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.api.completeAppointment(appointment.id, { expectedVersion: appointment.version }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.completionFormId.set(null); this.feedback.set('Atención finalizada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo finalizar la atención.'); },
     });
   }
 }
