@@ -1,4 +1,5 @@
 import { CalendarPageComponent } from './pages/calendar-page.component';
+import { DentistOwnCalendarComponent } from './pages/dentist-own-calendar.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
 import { SchedulingPageComponent } from './pages/scheduling-page.component';
@@ -44,6 +45,11 @@ describe('APPOINTMENTS_ROUTES', () => {
 
     expect(forbiddenRoute).toBeDefined();
     expect(forbiddenRoute?.component).toBe(ForbiddenPageComponent);
+  });
+
+  it('provides the dentist own calendar route', () => {
+    expect(APPOINTMENTS_ROUTES.find((route) => route.path === 'my-calendar')?.component)
+      .toBe(DentistOwnCalendarComponent);
   });
 
   it('uses the not found page for unknown routes', () => {
