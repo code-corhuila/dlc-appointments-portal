@@ -32,7 +32,10 @@
             id="patient-search"
             type="search"
             placeholder="Buscar por nombre, documento o teléfono..."
-            (input)="searchPatients($any($event.target).value)" />
+            [attr.aria-expanded]="patientResults().length > 0"
+            aria-controls="patient-results"
+            (input)="searchPatients($any($event.target).value)"
+            (keydown)="handlePatientSearchKey($event)" />
         </div>
 
         @if (isPatientSearchLoading()) {
@@ -68,13 +71,18 @@
 
         @if (patientResults().length > 0) {
           <div
+            id="patient-results"
             class="patient-results"
+            role="listbox"
             aria-label="Resultados de pacientes">
-            @for (patient of patientResults(); track patient.id) {
+            @for (patient of patientResults(); track patient.id; let index = $index) {
               <button
                 type="button"
                 class="patient-result"
                 data-patient-result
+                role="option"
+                [class.is-active]="activePatientResultIndex() === index"
+                [attr.aria-selected]="selectedPatient()?.id === patient.id"
                 (click)="selectPatient(patient)">
                 <strong>{{ patient.name }}</strong>
 
@@ -110,10 +118,14 @@
 
             <select
               id="specialty"
-              disabled>
-              <option>
+              (change)="selectSpecialty($any($event.target).value)">
+              <option value="">
                 Seleccionar especialidad
               </option>
+
+              @for (specialty of specialties; track specialty.id) {
+                <option [value]="specialty.id">{{ specialty.name }}</option>
+              }
             </select>
           </div>
 
@@ -124,10 +136,15 @@
 
             <select
               id="consultation-type"
-              disabled>
-              <option>
+              [disabled]="!selectedSpecialty()"
+              (change)="selectConsultation($any($event.target).value)">
+              <option value="">
                 Seleccionar tipo de consulta
               </option>
+
+              @for (consultation of consultations(); track consultation) {
+                <option [value]="consultation">{{ consultation }}</option>
+              }
             </select>
           </div>
         </div>
@@ -146,6 +163,7 @@
             id="appointment-date"
             class="native-date-input"
             type="date"
+            [min]="dateOptions[0]?.value"
             [value]="selectedDate() ?? ''"
             (change)="selectDate($any($event.target).value)" />
 
@@ -264,6 +282,25 @@
           }
         </select>
 
+        @if (selectedSpecialty()) {
+          <div class="specialist-options" aria-label="Odontólogos demostrativos">
+            @for (dentist of dentists(); track dentist.id) {
+              <button
+                type="button"
+                class="specialist-option"
+                data-demo-dentist
+                [attr.aria-pressed]="selectedDentistId() === dentist.id"
+                (click)="selectDentist(dentist.id)">
+                <span class="specialist-photo" aria-hidden="true">♙</span>
+                <span class="specialist-info">
+                  <strong>{{ dentist.name }}</strong>
+                  <span>{{ selectedSpecialtyName() }} · Demostración</span>
+                </span>
+              </button>
+            }
+          </div>
+        }
+
         @if (dentists().length === 0) {
           <p
             class="specialist-helper"
@@ -325,7 +362,13 @@
 
       <div class="summary-row">
         <span>Servicio</span>
-        <strong>No seleccionado</strong>
+        <strong data-selected-service>
+          @if (selectedSpecialty() && selectedConsultation()) {
+            {{ selectedSpecialtyName() }} · {{ selectedConsultation() }}
+          } @else {
+            No seleccionado
+          }
+        </strong>
       </div>
 
       <div class="summary-row">
