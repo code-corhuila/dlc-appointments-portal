@@ -6,12 +6,14 @@ import {
 } from './data/calendar-support-data-source';
 import { AvailabilityPageComponent } from './pages/availability-page.component';
 import { CalendarPageComponent } from './pages/calendar-page.component';
+import { ClinicalAssignmentsPageComponent } from './pages/clinical-assignments-page.component';
 import { DentistOwnCalendarComponent } from './pages/dentist-own-calendar.component';
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
 import { SchedulingPageComponent } from './pages/scheduling-page.component';
 
 export const APPOINTMENTS_ROUTES: Routes = [
+  { path: 'clinical-assignments', component: ClinicalAssignmentsPageComponent },
   {
     path: 'calendar',
     component: CalendarPageComponent,
