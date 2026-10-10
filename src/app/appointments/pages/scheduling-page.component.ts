@@ -20,6 +20,7 @@ import {
   DentistDirectoryItem,
 } from '../data/dentist-directory';
 import { PatientsLookupService } from '../data/patients-lookup.service';
+import { SchedulingDemoService } from '../data/scheduling-demo.service';
 import {
   AvailabilitySlot,
   DEFAULT_SLOT_DURATION_MINUTES,
@@ -74,6 +75,8 @@ export class SchedulingPageComponent {
   private readonly patients =
     inject(PatientsLookupService);
 
+  private readonly demo = inject(SchedulingDemoService);
+
   private readonly dentistDirectory =
     inject(DENTIST_DIRECTORY);
 
@@ -118,8 +121,28 @@ export class SchedulingPageComponent {
   readonly patientResults =
     signal<readonly PatientView[]>([]);
 
+  protected readonly activePatientResultIndex = signal(-1);
+
   readonly selectedPatient =
     signal<PatientView | null>(null);
+
+  readonly selectedSpecialty = signal<string | null>(null);
+
+  readonly selectedConsultation = signal<string | null>(null);
+
+  protected readonly specialties = this.demo.specialties;
+
+  protected readonly consultations = computed(() =>
+    this.specialties.find((specialty) =>
+      specialty.id === this.selectedSpecialty(),
+    )?.consultations ?? [],
+  );
+
+  protected readonly selectedSpecialtyName = computed(() =>
+    this.specialties.find((specialty) =>
+      specialty.id === this.selectedSpecialty(),
+    )?.name ?? null,
+  );
 
   readonly isPatientSearchLoading =
     signal(false);
@@ -188,6 +211,7 @@ export class SchedulingPageComponent {
     this.hasCompletedPatientSearch.set(false);
     this.hasPatientSearchError.set(false);
     this.patientResults.set([]);
+    this.activePatientResultIndex.set(-1);
 
     const normalizedSearch =
       search.trim();
@@ -222,6 +246,9 @@ export class SchedulingPageComponent {
           next: (page) => {
             this.patientResults.set(
               page.data,
+            );
+            this.activePatientResultIndex.set(
+              page.data.length ? 0 : -1,
             );
 
             this.hasCompletedPatientSearch.set(
@@ -267,6 +294,34 @@ export class SchedulingPageComponent {
     this.clearAppointmentFeedback();
   }
 
+  protected handlePatientSearchKey(event: KeyboardEvent): void {
+    const results = this.patientResults();
+
+    if (event.key === 'Escape') {
+      this.patientResults.set([]);
+      this.activePatientResultIndex.set(-1);
+      return;
+    }
+
+    if (!results.length) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      this.activePatientResultIndex.update((index) =>
+        (index + direction + results.length) % results.length,
+      );
+    }
+
+    if (event.key === 'Enter') {
+      const patient = results[this.activePatientResultIndex()];
+      if (patient) {
+        event.preventDefault();
+        this.selectPatient(patient);
+      }
+    }
+  }
+
   protected selectDentist(
     dentistId: string,
   ): void {
@@ -277,6 +332,26 @@ export class SchedulingPageComponent {
     this.clearAppointmentFeedback();
 
     this.refreshAvailabilitySlots();
+  }
+
+  protected selectSpecialty(specialty: string): void {
+    this.selectedSpecialty.set(specialty || null);
+    this.selectedConsultation.set(null);
+    this.selectedDentistId.set(null);
+    this.dentists.set([]);
+
+    if (specialty) {
+      this.demo.listDentistsForSpecialty(specialty).subscribe(
+        (dentists) => this.dentists.set(dentists),
+      );
+    }
+
+    this.clearAppointmentFeedback();
+  }
+
+  protected selectConsultation(consultation: string): void {
+    this.selectedConsultation.set(consultation || null);
+    this.clearAppointmentFeedback();
   }
 
   protected selectDate(
@@ -321,13 +396,15 @@ export class SchedulingPageComponent {
 
     if (
       !patient ||
+      !this.selectedSpecialty() ||
+      !this.selectedConsultation() ||
       !dentistId ||
       !slot
     ) {
       this.appointmentSuccess.set(null);
 
       this.appointmentError.set(
-        APPOINTMENT_LOCAL_VALIDATION_MESSAGE,
+        'Seleccione un paciente, un odontólogo y un horario antes de continuar. Además seleccione especialidad y consulta.',
       );
 
       return;
@@ -369,7 +446,7 @@ export class SchedulingPageComponent {
           this.appointmentError.set(null);
 
           this.appointmentSuccess.set(
-            APPOINTMENT_SUCCESS_MESSAGE,
+          'Cita agendada correctamente. Cita demostrativa creada correctamente; los datos son temporales y no se guardaron en una base de datos real.',
           );
         },
         error: (error: unknown) => {

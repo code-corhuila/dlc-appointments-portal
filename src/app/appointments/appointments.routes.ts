@@ -11,6 +11,10 @@ import { DentistOwnCalendarComponent } from './pages/dentist-own-calendar.compon
 import { ForbiddenPageComponent } from './pages/forbidden-page.component';
 import { NotFoundPageComponent } from './pages/not-found-page.component';
 import { SchedulingPageComponent } from './pages/scheduling-page.component';
+import { AppointmentsApiService } from './data/appointments-api.service';
+import { DENTIST_DIRECTORY } from './data/dentist-directory';
+import { PatientsLookupService } from './data/patients-lookup.service';
+import { SchedulingDemoService } from './data/scheduling-demo.service';
 
 export const APPOINTMENTS_ROUTES: Routes = [
   { path: 'clinical-assignments', component: ClinicalAssignmentsPageComponent },
@@ -31,6 +35,12 @@ export const APPOINTMENTS_ROUTES: Routes = [
   {
     path: 'new',
     component: SchedulingPageComponent,
+    providers: [
+      SchedulingDemoService,
+      { provide: AppointmentsApiService, useExisting: SchedulingDemoService },
+      { provide: PatientsLookupService, useExisting: SchedulingDemoService },
+      { provide: DENTIST_DIRECTORY, useExisting: SchedulingDemoService },
+    ],
   },
   {
     path: 'availability',

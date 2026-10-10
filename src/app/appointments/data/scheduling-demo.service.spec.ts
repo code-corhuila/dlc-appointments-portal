@@ -1,11 +1,10 @@
 import { firstValueFrom } from 'rxjs';
 
 import { SchedulingDemoService } from './scheduling-demo.service';
-import { DemoAppointmentStore } from './demo-appointment-store';
 
 describe('SchedulingDemoService', () => {
   it('searches synthetic patients and prevents duplicate reservations', async () => {
-    const service = new SchedulingDemoService(new DemoAppointmentStore());
+    const service = new SchedulingDemoService();
     const patients = await firstValueFrom(
       service.searchPatients({ search: 'Ana', status: 'ACTIVE' }),
     );

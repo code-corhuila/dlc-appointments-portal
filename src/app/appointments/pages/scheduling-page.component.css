@@ -166,6 +166,43 @@ select:disabled {
   padding-left: 38px;
 }
 
+.patient-results {
+  display: grid;
+  max-height: 208px;
+  margin-top: 7px;
+  overflow-y: auto;
+  border: 1px solid #d6dfe1;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.patient-result {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 54px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid #edf1f2;
+  background: #fff;
+  color: #34474c;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.patient-result:last-child { border-bottom: 0; }
+
+.patient-result span { color: #738287; font-size: 11px; }
+
+.patient-result:hover,
+.patient-result.is-active,
+.patient-result[aria-selected='true'] {
+  background: #e8f7f4;
+  color: #08776c;
+}
+
 .control-icon {
   position: absolute;
   top: 50%;
@@ -327,16 +364,13 @@ select:disabled {
   text-align: left;
 }
 
-.specialist-option:first-child {
+.specialist-option[aria-pressed='true'] {
   border-color: #168e82;
   background: #dff5f0;
   box-shadow: inset 0 0 0 1px #168e82;
 }
 
-.specialist-option:disabled {
-  opacity: 1;
-  cursor: default;
-}
+.specialist-option { cursor: pointer; }
 
 .specialist-photo {
   display: grid;
