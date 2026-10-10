@@ -63,6 +63,28 @@ export const CALENDAR_SUPPORT_FIXTURE_DATA: CalendarSupportDataSource = {
   ],
   appointments: [
     {
+      id: 'appointment-demo-completion-001',
+      patientId: 'patient-demo-003',
+      dentistId: 'dentist-demo-001',
+      startAt: '2026-10-16T14:00:00-05:00',
+      endAt: '2026-10-16T14:30:00-05:00',
+      reason: 'Control preventivo',
+      status: 'EN_ATENCION',
+      confirmationStatus: 'CONFIRMED',
+      version: 1,
+    },
+    {
+      id: 'appointment-demo-completion-rejected-001',
+      patientId: 'patient-demo-004',
+      dentistId: 'dentist-demo-001',
+      startAt: '2026-10-17T14:00:00-05:00',
+      endAt: '2026-10-17T14:30:00-05:00',
+      reason: 'Control preventivo',
+      status: 'EN_ATENCION',
+      confirmationStatus: 'CONFIRMED',
+      version: 1,
+    },
+    {
       id: 'appointment-demo-no-show-001',
       patientId: 'patient-demo-002',
       dentistId: 'dentist-demo-001',
