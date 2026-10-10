@@ -469,6 +469,38 @@ describe('CalendarPageComponent', () => {
     expect(element.querySelector('[role="status"]')?.textContent)
       .toContain('Reprogramación registrada correctamente');
     expect(element.querySelector('[data-selected-appointment]')?.textContent)
-      .toContain('2026-10-17');
+      .toContain('17 de octubre de 2026');
+  });
+
+  it('renders the expanded fixture agenda and a dynamic waiting list', () => {
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(fixture.componentInstance.appointments()).toHaveLength(24);
+    expect(element.querySelector('[data-waiting-count]')?.textContent?.trim()).toBe('8');
+    expect(element.querySelectorAll('[data-waiting-patient]')).toHaveLength(8);
+    expect(element.querySelectorAll('[data-calendar-appointment="appointment-demo-010"]')).toHaveLength(1);
+  });
+
+  it('assigns a waiting patient in the demonstration and updates the agenda', () => {
+    const element = fixture.nativeElement as HTMLElement;
+
+    element.querySelector<HTMLButtonElement>('[data-assign-waiting="waiting-demo-001"]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-confirm-demo-assignment]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-waiting-count]')?.textContent?.trim()).toBe('7');
+    expect(element.querySelector('[data-waiting-patient="waiting-demo-001"]')).toBeNull();
+    expect(element.querySelector('[data-calendar-appointment="appointment-demo-waiting-demo-001"]')).not.toBeNull();
+  });
+
+  it('formats the selected appointment details for visual reading', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-001"]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('15 de octubre de 2026');
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('2:00 p. m.');
+    expect(element.querySelector('[data-appointment-confirm]')?.classList.contains('action-primary')).toBe(true);
   });
 });

@@ -8,6 +8,7 @@ import {
 
 import {
   CALENDAR_SUPPORT_DATA_SOURCE,
+  WaitingListItem,
 } from '../data/calendar-support-data-source';
 import { CalendarAppointmentDemoService } from '../data/calendar-appointment-demo.service';
 import { AppointmentsApiService } from '../data/appointments-api.service';
@@ -115,24 +116,15 @@ const MONTH_NAMES = [
               aria-label="Días del calendario"
             >
               @for (day of days(); track day.date) {
-                <button
-                  type="button"
-                  class="calendar-day"
-                  data-calendar-day
-                  [attr.data-date]="day.date"
-                  [attr.data-current-month]="day.isCurrentMonth"
-                  [attr.data-calendar-appointment]="appointmentForDate(day.date)?.id ?? null"
-                  [attr.aria-label]="appointmentForDate(day.date) ? 'Seleccionar cita de demostración' : null"
-                  (click)="selectAppointmentForDate(day.date)"
-                >
-                  {{ dayNumber(day.date) }}
-
-                  @if (appointmentForDate(day.date)) {
-                    <span class="calendar-appointment-label">
-                      {{ appointmentForDate(day.date)?.status }}
-                    </span>
+                <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth">
+                  <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
+                  @for (appointment of appointmentsForDate(day.date).slice(0, 3); track appointment.id) {
+                    <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" (click)="selectAppointment(appointment)">
+                      {{ appointment.startAt.slice(11, 16) }} · {{ appointment.reason ?? 'Cita' }} · {{ appointment.status }}
+                    </button>
                   }
-                </button>
+                  @if (appointmentsForDate(day.date).length > 3) { <span class="calendar-appointment-label">+{{ appointmentsForDate(day.date).length - 3 }} más</span> }
+                </div>
               }
             </div>
           </section>
@@ -147,8 +139,9 @@ const MONTH_NAMES = [
               <p>Demostración visual con datos simulados.</p>
               <dl>
                 <div><dt>Referencia</dt><dd>{{ appointment.id }}</dd></div>
-                <div><dt>Estado</dt><dd>{{ appointment.status }}</dd></div>
-                <div><dt>Horario</dt><dd>{{ appointment.startAt }}</dd></div>
+                <div><dt>Estado</dt><dd><span class="appointment-status">{{ appointment.status }}</span></dd></div>
+                <div><dt>Fecha</dt><dd>{{ formatAppointmentDate(appointment.startAt) }}</dd></div>
+                <div><dt>Horario</dt><dd>{{ formatAppointmentTime(appointment.startAt) }} – {{ formatAppointmentTime(appointment.endAt) }}</dd></div>
               </dl>
 
               <app-appointment-actions
@@ -196,16 +189,16 @@ const MONTH_NAMES = [
               <h2>Lista de Espera</h2>
 
               <span class="waiting-count">
-                {{ waitingList.length }}
+                <span data-waiting-count>{{ waitingList().length }}</span>
               </span>
             </header>
 
             <div class="waiting-list">
               @for (
-                patient of waitingList;
-                track patient.name
+                patient of waitingList();
+                track patient.id
               ) {
-                <article class="waiting-card">
+                <article class="waiting-card" data-waiting-patient [attr.data-waiting-patient]="patient.id">
                   <div class="waiting-card-heading">
                     <strong>
                       {{ patient.name }}
@@ -226,14 +219,23 @@ const MONTH_NAMES = [
                   <button
                     type="button"
                     class="assign-button"
-                    disabled
-                    aria-disabled="true"
+                    [attr.data-assign-waiting]="patient.id"
+                    (click)="startDemoAssignment(patient)"
                   >
                     Asignar Turno
                   </button>
+                  @if (assignmentPatientId() === patient.id) {
+                    <select class="demo-assignment-slot" data-demo-assignment-slot [value]="assignmentSlot()" (change)="assignmentSlot.set($any($event.target).value)">
+                      <option value="2026-10-20T09:00:00-05:00">20 oct · 9:00 a. m.</option>
+                      <option value="2026-10-21T11:00:00-05:00">21 oct · 11:00 a. m.</option>
+                    </select>
+                    <button type="button" class="demo-assignment-confirm" data-confirm-demo-assignment (click)="confirmDemoAssignment(patient)">Confirmar turno</button>
+                  }
                 </article>
               }
+              @empty { <p data-waiting-empty>No hay pacientes en espera.</p> }
             </div>
+            @if (assignmentFeedback()) { <p role="status">{{ assignmentFeedback() }}</p> }
           </section>
         </aside>
       </section>
@@ -266,14 +268,16 @@ export class CalendarPageComponent {
   readonly treatmentLegend =
     this.supportDataSource.treatmentLegend;
 
-  readonly waitingList =
-    this.supportDataSource.waitingList;
+  readonly waitingList = signal(this.supportDataSource.waitingList);
 
   readonly appointments = signal(
     this.supportDataSource.appointments,
   );
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  readonly assignmentPatientId = signal<string | null>(null);
+  readonly assignmentSlot = signal('2026-10-20T09:00:00-05:00');
+  readonly assignmentFeedback = signal<string | null>(null);
   readonly demoNow = new Date('2026-10-09T14:00:00-05:00');
 
   private readonly anchorDate = signal('2026-10-15');
@@ -306,14 +310,52 @@ export class CalendarPageComponent {
     return Number(date.slice(-2));
   }
 
+  formatAppointmentDate(value: string): string {
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    return `${day} de ${MONTH_NAMES[month - 1]} de ${year}`;
+  }
+
+  formatAppointmentTime(value: string): string {
+    const hour = Number(value.slice(11, 13));
+    return `${hour % 12 || 12}:${value.slice(14, 16)} ${hour < 12 ? 'a. m.' : 'p. m.'}`;
+  }
+
   appointmentForDate(date: string): Appointment | undefined {
-    return this.appointments().find((appointment) =>
+    return this.appointmentsForDate(date)[0];
+  }
+
+  appointmentsForDate(date: string): readonly Appointment[] {
+    return this.appointments().filter((appointment) =>
       appointment.startAt.startsWith(date),
     );
   }
 
   selectAppointmentForDate(date: string): void {
     this.selectedAppointment.set(this.appointmentForDate(date) ?? null);
+  }
+
+  selectAppointment(appointment: Appointment): void {
+    this.selectedAppointment.set(appointment);
+  }
+
+  startDemoAssignment(patient: WaitingListItem): void {
+    this.assignmentPatientId.set(patient.id);
+    this.assignmentFeedback.set(null);
+  }
+
+  confirmDemoAssignment(patient: WaitingListItem): void {
+    if (this.assignmentPatientId() !== patient.id) return;
+    const startAt = this.assignmentSlot();
+    const appointment: Appointment = {
+      id: `appointment-demo-${patient.id}`, patientId: patient.id,
+      dentistId: 'dentist-demo-001', startAt,
+      endAt: `${startAt.slice(0, 11)}${String(Number(startAt.slice(11, 13)) + 1).padStart(2, '0')}${startAt.slice(13)}`,
+      reason: patient.treatment, status: 'PROGRAMADA', confirmationStatus: 'PENDING', version: 1,
+    };
+    this.appointments.update((appointments) => [...appointments, appointment]);
+    this.waitingList.update((patients) => patients.filter((item) => item.id !== patient.id));
+    this.assignmentPatientId.set(null);
+    this.assignmentFeedback.set(`Turno demostrativo asignado a ${patient.name}.`);
   }
 
   updateAppointment(updatedAppointment: Appointment): void {
