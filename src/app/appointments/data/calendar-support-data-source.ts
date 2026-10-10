@@ -15,6 +15,7 @@ export interface TreatmentLegendItem {
 }
 
 export interface WaitingListItem {
+  readonly id: string;
   readonly name: string;
   readonly treatment: string;
   readonly treatmentKey: TreatmentKey;
@@ -48,19 +49,18 @@ export const CALENDAR_SUPPORT_FIXTURE_DATA: CalendarSupportDataSource = {
     },
   ],
   waitingList: [
-    {
-      name: 'Ana García',
-      treatment: 'Cirugía',
-      treatmentKey: 'surgery',
-      preference: 'Prefiere: Mañanas (9am – 12pm)',
-    },
-    {
-      name: 'Carlos López',
-      treatment: 'Limpieza',
-      treatmentKey: 'cleaning',
-      preference: 'Cualquier horario disponible.',
-    },
-  ],
+    ['001', 'Ana García', 'Cirugía', 'surgery', 'Mañana'],
+    ['002', 'Carlos López', 'Limpieza', 'cleaning', 'Cualquier horario'],
+    ['003', 'Laura Martínez', 'Ortodoncia', 'orthodontics', 'Tarde'],
+    ['004', 'Sebastián Rojas', 'Limpieza', 'cleaning', 'Mañana'],
+    ['005', 'Valentina Torres', 'Cirugía', 'surgery', 'Tarde'],
+    ['006', 'Daniel Herrera', 'Ortodoncia', 'orthodontics', 'Mañana'],
+    ['007', 'Camila Rodríguez', 'Limpieza', 'cleaning', 'Cualquier horario'],
+    ['008', 'Andrés Ramírez', 'Ortodoncia', 'orthodontics', 'Tarde'],
+  ].map(([id, name, treatment, treatmentKey, preference]) => ({
+    id: `waiting-demo-${id}`, name, treatment,
+    treatmentKey: treatmentKey as TreatmentKey, preference,
+  })),
   appointments: [
     {
       id: 'appointment-demo-completion-001',
@@ -106,5 +106,19 @@ export const CALENDAR_SUPPORT_FIXTURE_DATA: CalendarSupportDataSource = {
       confirmationStatus: 'PENDING',
       version: 1,
     },
+    ...Array.from({ length: 20 }, (_, index): Appointment => {
+      const day = String((index * 3) % 28 + 1).padStart(2, '0');
+      const hour = String(8 + (index % 8)).padStart(2, '0');
+      const status = ['PROGRAMADA', 'CONFIRMADA', 'EN_ATENCION', 'FINALIZADA', 'CANCELADA', 'NO_ASISTIO'][index % 6] as Appointment['status'];
+      return {
+        id: `appointment-demo-${String(index + 10).padStart(3, '0')}`,
+        patientId: `patient-demo-${String(index + 10).padStart(3, '0')}`,
+        dentistId: `dentist-demo-${index % 3 + 1}`,
+        startAt: `2026-10-${day}T${hour}:00:00-05:00`,
+        endAt: `2026-10-${day}T${hour}:30:00-05:00`,
+        reason: ['Limpieza', 'Cirugía', 'Ortodoncia'][index % 3],
+        status, confirmationStatus: status === 'CONFIRMADA' ? 'CONFIRMED' : 'PENDING', version: 1,
+      };
+    }),
   ],
 };

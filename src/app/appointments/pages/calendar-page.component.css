@@ -190,6 +190,21 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.calendar-day > button:first-child {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.calendar-day .calendar-appointment-label {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .calendar-appointment-label {
   margin-top: 8px;
   padding: 3px 5px;
@@ -253,6 +268,16 @@ button:focus-visible {
 .selected-appointment-panel dd {
   margin: 0;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.appointment-status {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 10px;
 }
 
 .calendar-panel {
@@ -344,6 +369,8 @@ button:focus-visible {
   display: grid;
   gap: 10px;
   padding: 10px;
+  max-height: 430px;
+  overflow-y: auto;
 }
 
 .waiting-card {
@@ -398,6 +425,52 @@ button:focus-visible {
   -webkit-text-fill-color: var(--accent-dark);
   opacity: 1;
   cursor: default;
+}
+
+.demo-assignment-slot,
+.demo-assignment-confirm {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 8px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.demo-assignment-slot {
+  box-sizing: border-box;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  cursor: pointer;
+}
+
+.demo-assignment-slot:hover {
+  background: var(--surface);
+}
+
+.demo-assignment-slot:focus-visible,
+.demo-assignment-confirm:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.demo-assignment-confirm {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.demo-assignment-confirm:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.demo-assignment-confirm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 850px) {
