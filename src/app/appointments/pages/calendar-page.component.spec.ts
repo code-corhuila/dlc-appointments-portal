@@ -332,6 +332,73 @@ describe('CalendarPageComponent', () => {
       .toContain('Confirmación registrada correctamente');
   });
 
+  it('starts attention after a demonstrated confirmation', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-001"]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-confirm]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-confirmation]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-start-attention]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-attention]')!.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
+  });
+
+  it('completes an attention appointment and synchronizes Calendar', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const id = 'appointment-demo-completion-001';
+
+    element.querySelector<HTMLButtonElement>(`[data-calendar-appointment="${id}"]`)!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('FINALIZADA');
+    expect(element.querySelector(`[data-calendar-appointment="${id}"]`)?.textContent).toContain('FINALIZADA');
+    expect(element.querySelector('[data-appointment-complete]')).toBeNull();
+    expect(fixture.componentInstance.appointments().filter((appointment) => appointment.id === id)).toHaveLength(1);
+    expect(fixture.componentInstance.selectedAppointment()).toMatchObject({
+      id, startAt: '2026-10-16T14:00:00-05:00', endAt: '2026-10-16T14:30:00-05:00',
+    });
+  });
+
+  it('preserves the appointment when the completion demo is rejected', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const id = 'appointment-demo-completion-rejected-001';
+
+    element.querySelector<HTMLButtonElement>(`[data-calendar-appointment="${id}"]`)!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-complete]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-completion]')!.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('No se pudo finalizar la atención');
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('EN_ATENCION');
+    expect(element.querySelector(`[data-calendar-appointment="${id}"]`)?.textContent).toContain('EN_ATENCION');
+  });
+
+  it('registers a no-show for a completed demonstration appointment', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[data-calendar-appointment="appointment-demo-no-show-001"]')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-no-show]')!.click();
+    fixture.detectChanges();
+    const reason = element.querySelector<HTMLInputElement>('[data-no-show-reason]')!;
+    reason.value = 'Paciente ausente';
+    reason.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('[data-appointment-submit-no-show]')!.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('NO_ASISTIO');
+    expect(element.querySelector('[data-calendar-appointment="appointment-demo-no-show-001"]')?.textContent).toContain('NO_ASISTIO');
+  });
+
   it('cancels an eligible demonstration appointment without a backend request', () => {
     const element = fixture.nativeElement as HTMLElement;
 

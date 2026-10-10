@@ -122,6 +122,29 @@ import {
         }
       }
 
+      @if (canManage() && currentAppointment().status === 'CONFIRMADA') {
+        <button type="button" data-appointment-start-attention [disabled]="isSubmitting()" (click)="startAttentionConfirmation()">Iniciar atención</button>
+        @if (isChoosingAttention()) {
+          <button type="button" data-appointment-submit-attention [disabled]="isSubmitting()" (click)="submitAttention()">Confirmar inicio</button>
+          <button type="button" data-appointment-dismiss-attention [disabled]="isSubmitting()" (click)="attentionFormId.set(null)">Volver</button>
+        }
+      }
+      @if (currentAppointment().status === 'EN_ATENCION' && canManage()) {
+        <button type="button" data-appointment-complete [disabled]="isSubmitting()" (click)="completionFormId.set(appointment().id)">Finalizar atención</button>
+        @if (isChoosingCompletion()) {
+          <button type="button" data-appointment-submit-completion [disabled]="isSubmitting()" (click)="submitCompletion()">Confirmar finalización</button>
+          <button type="button" data-appointment-dismiss-completion (click)="completionFormId.set(null)">Volver</button>
+        }
+      }
+      @if (canNoShow()) {
+        <button type="button" data-appointment-no-show [disabled]="isSubmitting()" (click)="noShowFormId.set(appointment().id)">Registrar inasistencia</button>
+        @if (isChoosingNoShow()) {
+          <input data-no-show-reason [value]="noShowReason()" (input)="noShowReason.set($any($event.target).value)" />
+          <button type="button" data-appointment-submit-no-show [disabled]="isSubmitting() || !noShowReason().trim()" (click)="submitNoShow()">Confirmar inasistencia</button>
+          <button type="button" data-appointment-dismiss-no-show (click)="noShowFormId.set(null)">Volver</button>
+        }
+      }
+
       @if (feedback()) {
         <p role="status">{{ feedback() }}</p>
       }
@@ -142,6 +165,9 @@ export class AppointmentActionsComponent {
   private readonly cancellationFormAppointmentId =
     signal<string | null>(null);
   private readonly reschedulingFormAppointmentId = signal<string | null>(null);
+  readonly attentionFormId = signal<string | null>(null);
+  readonly noShowFormId = signal<string | null>(null);
+  readonly completionFormId = signal<string | null>(null);
 
   readonly appointment = input.required<Appointment>();
   readonly canManage = input(false);
@@ -199,6 +225,7 @@ export class AppointmentActionsComponent {
   readonly cancellationReason = signal('');
   readonly reschedulingStart = signal('');
   readonly reschedulingReason = signal('');
+  readonly noShowReason = signal('');
 
   readonly feedback = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
@@ -214,6 +241,13 @@ export class AppointmentActionsComponent {
     return !!this.reschedulingReason().trim() &&
       !!startAt && new Date(startAt).getTime() > this.now().getTime() &&
       new Date(startAt).getTime() !== new Date(this.currentAppointment().startAt).getTime();
+  });
+  readonly isChoosingAttention = computed(() => this.attentionFormId() === this.appointment().id);
+  readonly isChoosingNoShow = computed(() => this.noShowFormId() === this.appointment().id);
+  readonly isChoosingCompletion = computed(() => this.completionFormId() === this.appointment().id);
+  readonly canNoShow = computed(() => {
+    const appointment = this.currentAppointment();
+    return this.canManage() && (appointment.status === 'PROGRAMADA' || appointment.status === 'CONFIRMADA') && !Number.isNaN(new Date(appointment.endAt).getTime()) && this.now().getTime() >= new Date(appointment.endAt).getTime();
   });
 
   startConfirmation(): void {
@@ -403,5 +437,34 @@ export class AppointmentActionsComponent {
         next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.reschedulingFormAppointmentId.set(null); this.feedback.set('Reprogramación registrada correctamente.'); },
         error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo reprogramar la cita.'); },
       });
+  }
+
+  startAttentionConfirmation(): void { if (!this.isSubmitting() && this.currentAppointment().status === 'CONFIRMADA') this.attentionFormId.set(this.appointment().id); }
+  submitAttention(): void {
+    const appointment = this.currentAppointment();
+    if (!this.isChoosingAttention() || appointment.status !== 'CONFIRMADA' || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.feedback.set(null); this.errorMessage.set(null);
+    this.api.startAttention(appointment.id, { expectedVersion: appointment.version }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.attentionFormId.set(null); this.feedback.set('Atención iniciada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo iniciar la atención.'); },
+    });
+  }
+
+  submitNoShow(): void {
+    const appointment = this.currentAppointment(); const reason = this.noShowReason().trim();
+    if (!this.canNoShow() || !this.isChoosingNoShow() || !reason || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.api.markNoShow(appointment.id, { expectedVersion: appointment.version, reason }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.noShowFormId.set(null); this.feedback.set('Inasistencia registrada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo registrar la inasistencia.'); },
+    });
+  }
+
+  submitCompletion(): void {
+    const appointment = this.currentAppointment();
+    if (!this.isChoosingCompletion() || appointment.status !== 'EN_ATENCION' || this.isSubmitting()) return;
+    this.isSubmitting.set(true); this.api.completeAppointment(appointment.id, { expectedVersion: appointment.version }, crypto.randomUUID()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (updated: Appointment) => { this.updatedAppointment.set(updated); this.appointmentUpdated.emit(updated); this.isSubmitting.set(false); this.completionFormId.set(null); this.feedback.set('Atención finalizada correctamente.'); },
+      error: () => { this.isSubmitting.set(false); this.errorMessage.set('No se pudo finalizar la atención.'); },
+    });
   }
 }
