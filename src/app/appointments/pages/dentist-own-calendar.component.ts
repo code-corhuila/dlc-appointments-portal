@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DENTIST_OWN_CALENDAR_DEMO, DentistOwnAppointmentDemo } from '../data/dentist-own-calendar-demo.data';
 import { buildCalendarDays } from '../domain/calendar-grid';
+import { DemoAppointmentStore } from '../data/demo-appointment-store';
 
 const MONTH_NAMES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'] as const;
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as const;
@@ -25,7 +26,7 @@ const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as const;
       </header>
       <section class="calendar-layout">
         <div class="calendar-main">
-          <div class="calendar-view-controls"><label class="view-switcher">Perfil demostrativo <select data-demo-dentist [value]="demoDentistId()" (change)="setDemoDentist($any($event.target).value)"><option value="dentist-own-demo-001">Odontóloga A</option><option value="dentist-own-demo-002">Odontóloga B</option></select></label></div>
+          <div class="calendar-view-controls"><label class="view-switcher">Perfil demostrativo <select data-demo-dentist [value]="demoDentistId()" (change)="setDemoDentist($any($event.target).value)"><option value="dentist-demo-001">Odontóloga A</option><option value="dentist-demo-002">Odontólogo B</option></select></label></div>
           <section class="calendar-card" aria-label="Calendario mensual propio">
             <div class="calendar-weekdays">@for (weekday of weekdays; track weekday) { <span>{{ weekday }}</span> }</div>
             <div class="calendar-grid">@for (day of days(); track day.date) {
@@ -48,12 +49,13 @@ const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as const;
   `,
 })
 export class DentistOwnCalendarComponent {
+  private readonly demoAppointments = inject(DemoAppointmentStore);
   readonly weekdays = WEEKDAYS;
-  readonly demoDentistId = signal('dentist-own-demo-001');
+  readonly demoDentistId = signal('dentist-demo-001');
   readonly anchorDate = signal('2026-10-15');
   readonly selectedDate = signal('2026-10-15');
   readonly selectedAppointment = signal<DentistOwnAppointmentDemo | null>(null);
-  readonly appointments = computed(() => DENTIST_OWN_CALENDAR_DEMO.filter((item) => item.appointment.dentistId === this.demoDentistId()));
+  readonly appointments = computed(() => [...DENTIST_OWN_CALENDAR_DEMO, ...this.demoAppointments.appointments().map((appointment) => ({ appointment, patientDisplayName: 'Paciente demostrativo' }))].filter((item) => item.appointment.dentistId === this.demoDentistId()));
   readonly days = computed(() => buildCalendarDays(this.anchorDate(), 'month'));
   readonly periodLabel = computed(() => { const [year, month] = this.anchorDate().split('-').map(Number); return `${MONTH_NAMES[month - 1][0].toUpperCase()}${MONTH_NAMES[month - 1].slice(1)} ${year}`; });
 
@@ -61,7 +63,7 @@ export class DentistOwnCalendarComponent {
   dayNumber(date: string): number { return Number(date.slice(-2)); }
   formatTime(value: string): string { const hour = Number(value.slice(11, 13)); return `${hour % 12 || 12}:${value.slice(14, 16)} ${hour < 12 ? 'a. m.' : 'p. m.'}`; }
   formatDate(value: string): string { const [year, month, day] = value.slice(0, 10).split('-').map(Number); return `${day} de ${MONTH_NAMES[month - 1]} de ${year}`; }
-  setDemoDentist(id: string): void { if (id === 'dentist-own-demo-001' || id === 'dentist-own-demo-002') { this.demoDentistId.set(id); this.selectedAppointment.set(null); this.selectedDate.set(this.anchorDate()); } }
+  setDemoDentist(id: string): void { if (id === 'dentist-demo-001' || id === 'dentist-demo-002') { this.demoDentistId.set(id); this.selectedAppointment.set(null); this.selectedDate.set(this.anchorDate()); } }
   selectDay(date: string): void { this.selectedDate.set(date); this.selectedAppointment.set(null); }
   selectAppointment(item: DentistOwnAppointmentDemo): void { this.selectedDate.set(item.appointment.startAt.slice(0, 10)); this.selectedAppointment.set(item); }
   navigateMonth(direction: -1 | 1): void { const [year, month] = this.anchorDate().split('-').map(Number); const next = new Date(Date.UTC(year, month - 1 + direction, 1)); const date = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`; this.anchorDate.set(date); this.selectedDate.set(date); this.selectedAppointment.set(null); }

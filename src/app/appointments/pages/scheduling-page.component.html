@@ -31,6 +31,7 @@
           <input
             id="patient-search"
             type="search"
+            [value]="patientSearchText()"
             placeholder="Buscar por nombre, documento o teléfono..."
             [attr.aria-expanded]="patientResults().length > 0"
             aria-controls="patient-results"
@@ -324,6 +325,7 @@
 
         <textarea
           id="reason"
+          [value]="appointmentReason"
           placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."
           (input)="setAppointmentReason($any($event.target).value)"></textarea>
       </section>

@@ -55,7 +55,7 @@ describe('DentistOwnCalendarComponent', () => {
     const component = fixture.componentInstance;
     const element = fixture.nativeElement as HTMLElement;
 
-    component.setDemoDentist('dentist-own-demo-002');
+    component.setDemoDentist('dentist-demo-002');
     fixture.detectChanges();
 
     expect(element.querySelector('[data-appointment-id="appointment-own-demo-001"]'))
