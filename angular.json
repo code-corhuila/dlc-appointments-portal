@@ -83,6 +83,28 @@
           },
           "defaultConfiguration": "production"
         },
+        "composition": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/entry.ts",
+            "tsConfig": "tsconfig.app.json",
+            "outputPath": "dist/composition-entry",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
+            "styles": [
+              "src/styles.css"
+            ],
+            "polyfills": [],
+            "index": false,
+            "outputHashing": "none",
+            "sourceMap": false,
+            "extractLicenses": false
+          }
+        },
         "serve-original": {
           "builder": "@angular/build:dev-server",
           "configurations": {
