@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   inject,
   signal,
@@ -12,10 +13,12 @@ import {
 } from '../data/calendar-support-data-source';
 import { CalendarAppointmentDemoService } from '../data/calendar-appointment-demo.service';
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { DemoAppointmentStore } from '../data/demo-appointment-store';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
 import { Appointment } from '../model/appointment';
 import { AppointmentActionsComponent } from './appointment-actions.component';
+import { Router } from '@angular/router';
 
 const MONTH_NAMES = [
   'enero',
@@ -78,6 +81,13 @@ const MONTH_NAMES = [
           </button>
         </div>
       </header>
+
+      @if (appointmentNotice()) {
+        <section class="created-appointment-notice" data-created-appointment-notice role="status"><button type="button" class="created-notice-close" aria-label="Cerrar confirmación" (click)="dismissAppointmentNotice()">×</button>
+          <div class="created-notice-heading"><span class="created-notice-check" aria-hidden="true">✓</span><div><h2>¡Cita agendada correctamente!</h2><p>La cita se registró temporalmente y ya puedes consultarla en el calendario.</p></div><span class="created-notice-tag">Demostrativa</span></div>
+          <div class="created-notice-details"><span aria-hidden="true">▣</span><strong>{{ appointmentNotice() }}</strong><span aria-hidden="true">◷</span><strong>{{ appointmentTime() }}</strong>@if (appointmentService()) { <span class="created-notice-service">{{ appointmentService() }}</span> }</div>
+        </section>
+      }
 
       <section class="calendar-layout">
         <div class="calendar-main">
@@ -246,6 +256,10 @@ export class CalendarPageComponent {
   private readonly supportDataSource = inject(
     CALENDAR_SUPPORT_DATA_SOURCE,
   );
+  private readonly demoAppointments = inject(DemoAppointmentStore);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private noticeTimeout?: ReturnType<typeof setTimeout>;
 
   readonly weekdays = [
     'Dom',
@@ -270,11 +284,15 @@ export class CalendarPageComponent {
 
   readonly waitingList = signal(this.supportDataSource.waitingList);
 
-  readonly appointments = signal(
+  private readonly fixtureAppointments = signal(
     this.supportDataSource.appointments,
   );
+  readonly appointments = computed(() => [...this.fixtureAppointments(), ...this.demoAppointments.appointments()]);
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  readonly appointmentNotice = signal<string | null>(null);
+  readonly appointmentTime = signal<string | null>(null);
+  readonly appointmentService = signal<string | null>(null);
   readonly assignmentPatientId = signal<string | null>(null);
   readonly assignmentSlot = signal('2026-10-20T09:00:00-05:00');
   readonly assignmentFeedback = signal<string | null>(null);
@@ -293,6 +311,22 @@ export class CalendarPageComponent {
       ? this.monthLabel()
       : this.weekLabel(),
   );
+
+  constructor() {
+    const state = this.router.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
+    if (!state?.appointmentId || !state.appointmentDate) return;
+    this.anchorDate.set(state.appointmentDate);
+    const appointment = this.appointments().find((item) => item.id === state.appointmentId) ?? null;
+    this.selectedAppointment.set(appointment);
+    this.appointmentNotice.set(appointment ? this.formatAppointmentDate(appointment.startAt) : null);
+    this.appointmentTime.set(appointment ? this.formatAppointmentTime(appointment.startAt) : null);
+    this.appointmentService.set(appointment?.reason ?? null);
+    window.history.replaceState({}, document.title);
+    this.noticeTimeout = setTimeout(() => this.dismissAppointmentNotice(), 5000);
+    this.destroyRef.onDestroy(() => this.dismissAppointmentNotice());
+  }
+
+  dismissAppointmentNotice(): void { if (this.noticeTimeout) clearTimeout(this.noticeTimeout); this.noticeTimeout = undefined; this.appointmentNotice.set(null); this.appointmentTime.set(null); this.appointmentService.set(null); }
 
   selectView(view: CalendarView): void {
     this.view.set(view);
@@ -352,14 +386,14 @@ export class CalendarPageComponent {
       endAt: `${startAt.slice(0, 11)}${String(Number(startAt.slice(11, 13)) + 1).padStart(2, '0')}${startAt.slice(13)}`,
       reason: patient.treatment, status: 'PROGRAMADA', confirmationStatus: 'PENDING', version: 1,
     };
-    this.appointments.update((appointments) => [...appointments, appointment]);
+    this.fixtureAppointments.update((appointments) => [...appointments, appointment]);
     this.waitingList.update((patients) => patients.filter((item) => item.id !== patient.id));
     this.assignmentPatientId.set(null);
     this.assignmentFeedback.set(`Turno demostrativo asignado a ${patient.name}.`);
   }
 
   updateAppointment(updatedAppointment: Appointment): void {
-    this.appointments.update((appointments) =>
+    this.fixtureAppointments.update((appointments) =>
       appointments.map((appointment) =>
         appointment.id === updatedAppointment.id
           ? updatedAppointment
