@@ -6,3 +6,20 @@ services:
     expose:
       - "80"
     restart: unless-stopped
+
+  appointments-portal-demo:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        BUILD_SCRIPT: build:entry
+    container_name: appointments-portal-demo
+    ports:
+      - "4177:80"
+    networks:
+      - dlc-front
+    restart: unless-stopped
+
+networks:
+  dlc-front:
+    name: dlc-front
