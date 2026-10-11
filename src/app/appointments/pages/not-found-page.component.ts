@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
 } from '@angular/core';
 
+import { CompositionNavigationService } from '../../composition-navigation.service';
 @Component({
   selector: 'app-not-found-page',
   standalone: true,
@@ -24,13 +26,26 @@ import {
         data-action="back"
         (click)="goBack()"
       >
-        Volver
+        {{ returnLabel }}
       </button>
     </section>
   `,
 })
 export class NotFoundPageComponent {
+  private readonly compositionNavigation = inject(
+    CompositionNavigationService,
+    { optional: true },
+  );
+
+  readonly returnLabel = this.compositionNavigation
+    ? 'Ir al calendario'
+    : 'Volver';
+
   goBack(): void {
+    if (this.compositionNavigation) {
+      void this.compositionNavigation.request({ localPath: '/calendar' });
+      return;
+    }
     history.back();
   }
 }

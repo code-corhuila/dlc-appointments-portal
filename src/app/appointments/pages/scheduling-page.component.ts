@@ -14,6 +14,8 @@ import {
 } from 'rxjs';
 import { Router } from '@angular/router';
 
+import { CompositionNavigationService } from '../../composition-navigation.service';
+
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
 import {
@@ -77,7 +79,11 @@ export class SchedulingPageComponent {
     inject(PatientsLookupService);
 
   private readonly demo = inject(SchedulingDemoService);
-  private readonly router = inject(Router);
+  private readonly router = inject(Router, { optional: true });
+  private readonly compositionNavigation = inject(
+    CompositionNavigationService,
+    { optional: true },
+  );
 
   private readonly dentistDirectory =
     inject(DENTIST_DIRECTORY);
@@ -453,7 +459,7 @@ export class SchedulingPageComponent {
           'Cita agendada correctamente. Cita demostrativa creada correctamente; los datos son temporales y no se guardaron en una base de datos real.',
           );
           this.resetForm();
-          void this.router.navigate(['/calendar'], { state: { appointmentId: appointment.id, appointmentDate: appointment.startAt.slice(0, 10) } });
+          this.navigateToCalendar(appointment.id, appointment.startAt);
         },
         error: (error: unknown) => {
           this.appointmentSuccess.set(null);
@@ -494,6 +500,16 @@ export class SchedulingPageComponent {
           }
         },
       });
+  }
+
+  private navigateToCalendar(appointmentId: string, startAt: string): void {
+    if (this.compositionNavigation) {
+      void this.compositionNavigation.request({ localPath: '/calendar' });
+      return;
+    }
+    void this.router?.navigate(['/calendar'], {
+      state: { appointmentId, appointmentDate: startAt.slice(0, 10) },
+    });
   }
 
   protected retryAvailability(): void {
