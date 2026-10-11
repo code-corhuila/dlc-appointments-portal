@@ -257,7 +257,7 @@ export class CalendarPageComponent {
     CALENDAR_SUPPORT_DATA_SOURCE,
   );
   private readonly demoAppointments = inject(DemoAppointmentStore);
-  private readonly router = inject(Router);
+  private readonly router = inject(Router, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private noticeTimeout?: ReturnType<typeof setTimeout>;
 
@@ -313,7 +313,7 @@ export class CalendarPageComponent {
   );
 
   constructor() {
-    const state = this.router.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
+    const state = this.router?.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
     if (!state?.appointmentId || !state.appointmentDate) return;
     this.anchorDate.set(state.appointmentDate);
     const appointment = this.appointments().find((item) => item.id === state.appointmentId) ?? null;

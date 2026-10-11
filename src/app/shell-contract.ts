@@ -19,7 +19,15 @@ export interface AppointmentsShellContext {
 }
 
 /** Provisional composition types; replace with dlc-front's canonical contract. */
-export type PortalRoute = string;
+export interface PortalRoute {
+  readonly localPath: string;
+  readonly query?: Readonly<Record<string, readonly string[]>>;
+}
+
+export interface ShellNavigationRequest {
+  readonly path: string;
+  readonly replace?: boolean;
+}
 
 export interface ShellHttpRequest {
   readonly method: string;
@@ -45,7 +53,9 @@ export interface ShellContext {
     getSnapshot(): ShellSessionSnapshot;
     subscribe(listener: (snapshot: ShellSessionSnapshot) => void): () => void;
   };
-  readonly navigation: { request(route: PortalRoute): Promise<void> | void };
+  readonly navigation: {
+    request(request: ShellNavigationRequest): Promise<void> | void;
+  };
   readonly route?: PortalRoute;
   readonly reportError?: (error: unknown) => void;
   readonly signal?: AbortSignal;
