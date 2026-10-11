@@ -7,6 +7,7 @@ import { DentistAvailability } from '../model/availability';
 import { Page } from '../model/page';
 import { PatientLookupQuery, PatientView } from '../model/patient';
 import { DentistDirectoryItem } from './dentist-directory';
+import { DemoAppointmentStore } from './demo-appointment-store';
 
 export interface DemoSpecialty {
   readonly id: string;
@@ -41,7 +42,7 @@ export class SchedulingDemoService {
     { id: 'endodontics', name: 'Endodoncia', consultations: ['Consulta de valoración'] },
   ];
 
-  private readonly appointments: Appointment[] = [];
+  constructor(private readonly appointments: DemoAppointmentStore) {}
 
   searchPatients(query: PatientLookupQuery = {}): Observable<Page<PatientView>> {
     const search = query.search?.trim().toLocaleLowerCase('es-CO') ?? '';
@@ -57,17 +58,13 @@ export class SchedulingDemoService {
 
   getDentistAvailability(dentistId: string): Observable<DentistAvailability> {
     const intervals = Array.from({ length: 7 }, (_, day) => ['08:00', '08:30', '09:00', '10:00', '14:00', '15:00'].map((time) => this.interval(day, time))).flat();
-    const blockedIntervals = this.appointments.filter((appointment) => appointment.dentistId === dentistId).map(({ startAt, endAt }) => ({ startAt, endAt }));
+    const blockedIntervals = this.appointments.forDentist(dentistId).map(({ startAt, endAt }) => ({ startAt, endAt }));
     return of({ id: `availability-${dentistId}`, dentistId, intervals, blockedIntervals, version: 1 });
   }
 
   createAppointment(request: CreateAppointmentRequest, _idempotencyKey: string): Observable<Appointment> {
-    if (this.appointments.some((appointment) => appointment.dentistId === request.dentistId && appointment.startAt === request.startAt)) {
-      return throwError(() => ({ error: 'APPOINTMENT_CONFLICT', message: 'Horario reservado en demostración.', traceId: 'demo' }));
-    }
-    const appointment: Appointment = { id: `appointment-demo-${this.appointments.length + 1}`, ...request, status: 'PROGRAMADA', confirmationStatus: 'PENDING', version: 1 };
-    this.appointments.push(appointment);
-    return of(appointment);
+    try { return of(this.appointments.reserve(request, PATIENTS.find((patient) => patient.id === request.patientId)?.name ?? 'Paciente demostrativo')); }
+    catch { return throwError(() => ({ error: 'APPOINTMENT_CONFLICT', message: 'Horario reservado en demostración.', traceId: 'demo' })); }
   }
 
   private interval(dayOffset: number, time: string): { startAt: string; endAt: string } {
