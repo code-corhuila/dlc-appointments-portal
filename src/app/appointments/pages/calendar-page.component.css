@@ -295,6 +295,11 @@ button:focus-visible {
   font-weight: 750;
 }
 
+.created-appointment-notice { margin: 0 0 18px; padding: 16px; border: 1px solid #9fd8cf; border-radius: 10px; background: #e8f7f4; color: #244f4a; }
+.created-notice-close { float: right; border: 0; background: transparent; color: #137b70; font-size: 20px; cursor: pointer; }
+.created-notice-heading,.created-notice-details { display: flex; align-items: center; gap: 9px; }
+.created-notice-check { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800; }
+
 .treatment-panel h2 {
   margin-bottom: 14px;
   text-transform: uppercase;
