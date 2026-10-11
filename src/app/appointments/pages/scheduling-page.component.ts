@@ -12,6 +12,7 @@ import {
   finalize,
   Subscription,
 } from 'rxjs';
+import { Router } from '@angular/router';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
@@ -76,6 +77,7 @@ export class SchedulingPageComponent {
     inject(PatientsLookupService);
 
   private readonly demo = inject(SchedulingDemoService);
+  private readonly router = inject(Router);
 
   private readonly dentistDirectory =
     inject(DENTIST_DIRECTORY);
@@ -96,7 +98,7 @@ export class SchedulingPageComponent {
     | string
     | null = null;
 
-  private appointmentReason = '';
+  protected appointmentReason = '';
 
   protected readonly clinicTimeZone =
     inject(CLINIC_TIME_ZONE_CONFIG);
@@ -125,6 +127,7 @@ export class SchedulingPageComponent {
 
   readonly selectedPatient =
     signal<PatientView | null>(null);
+  readonly patientSearchText = signal('');
 
   readonly selectedSpecialty = signal<string | null>(null);
 
@@ -201,6 +204,7 @@ export class SchedulingPageComponent {
   protected searchPatients(
     search: string,
   ): void {
+    this.patientSearchText.set(search);
     this.patientSearchRequest?.unsubscribe();
 
     // A new search invalidates the previous selection.
@@ -442,12 +446,14 @@ export class SchedulingPageComponent {
         }),
       )
       .subscribe({
-        next: () => {
+        next: (appointment) => {
           this.appointmentError.set(null);
 
           this.appointmentSuccess.set(
           'Cita agendada correctamente. Cita demostrativa creada correctamente; los datos son temporales y no se guardaron en una base de datos real.',
           );
+          this.resetForm();
+          void this.router.navigate(['/calendar'], { state: { appointmentId: appointment.id, appointmentDate: appointment.startAt.slice(0, 10) } });
         },
         error: (error: unknown) => {
           this.appointmentSuccess.set(null);
@@ -497,6 +503,13 @@ export class SchedulingPageComponent {
   private clearAppointmentFeedback(): void {
     this.appointmentError.set(null);
     this.appointmentSuccess.set(null);
+  }
+
+  private resetForm(): void {
+    this.selectedPatient.set(null); this.patientSearchText.set(''); this.patientResults.set([]);
+    this.selectedSpecialty.set(null); this.selectedConsultation.set(null); this.selectedDate.set(null);
+    this.selectedDentistId.set(null); this.selectedSlot.set(null); this.availableSlots.set([]); this.dentists.set([]);
+    this.appointmentReason = '';
   }
 
   private refreshAvailabilitySlots(): void {
