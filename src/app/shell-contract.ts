@@ -1,3 +1,5 @@
+import { InjectionToken } from '@angular/core';
+
 /**
  * Provisional compile-time boundary for dlc-front integration.
  *
@@ -44,9 +46,13 @@ export interface ShellContext {
     subscribe(listener: (snapshot: ShellSessionSnapshot) => void): () => void;
   };
   readonly navigation: { request(route: PortalRoute): Promise<void> | void };
+  readonly route?: PortalRoute;
   readonly reportError?: (error: unknown) => void;
   readonly signal?: AbortSignal;
 }
+
+/** Angular DI bridge for the provisional shell-owned composition context. */
+export const SHELL_CONTEXT = new InjectionToken<ShellContext>('SHELL_CONTEXT');
 
 export interface PortalMountHandle {
   updateRoute(route: PortalRoute): Promise<void> | void;
