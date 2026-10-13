@@ -43,3 +43,105 @@
     justify-content: flex-start;
   }
 }
+
+.calendar-day { flex-direction: column; }
+
+.calendar-day .calendar-appointment-label,
+.calendar-more-appointments,
+.calendar-day-preview-trigger {
+  min-height: 20px;
+  margin-top: 4px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.calendar-more-appointments { width: fit-content; }
+.calendar-day-preview-trigger { width: 22px; padding: 2px; text-align: center; }
+
+.calendar-day .calendar-appointment-label:hover,
+.calendar-more-appointments:hover,
+.calendar-day-preview-trigger:hover { background: #d5efec; }
+
+.calendar-more-appointments:focus-visible,
+.calendar-day-preview-trigger:focus-visible,
+.daily-appointment-preview button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.daily-appointment-preview {
+  position: fixed;
+  z-index: 20;
+  width: min(344px, calc(100vw - 32px));
+  max-height: min(420px, calc(100vh - 32px));
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgb(32 38 43 / 22%);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.daily-appointment-preview header,
+.daily-appointment-preview header > div,
+.daily-appointment-list,
+.daily-appointment-list button { display: grid; }
+
+.daily-appointment-preview header {
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.daily-appointment-preview header > div { gap: 3px; }
+.daily-appointment-preview header strong { font-size: 14px; }
+.daily-appointment-preview header span { color: var(--text-secondary); font-size: 11px; }
+.daily-appointment-preview header button { border: 0; background: transparent; color: var(--text-secondary); font-size: 18px; cursor: pointer; }
+
+.daily-appointment-list { max-height: 330px; gap: 7px; overflow-y: auto; }
+
+.daily-appointment-list button {
+  grid-template-columns: auto 1fr;
+  gap: 4px 9px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-appointment-list button:hover { border-color: var(--accent); background: var(--surface); }
+.daily-appointment-list time { color: var(--accent-dark); font-weight: 700; white-space: nowrap; }
+.daily-appointment-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-appointment-list em { grid-column: 1 / -1; color: var(--text-secondary); font-size: 10px; font-style: normal; font-weight: 700; }
+
+@media (max-width: 850px) {
+  .daily-appointment-preview { width: calc(100vw - 32px); max-height: min(420px, calc(100vh - 32px)); }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
