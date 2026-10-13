@@ -1,1 +1,45 @@
 /* You can add global styles to this file, and also import other style files */
+
+.calendar-scheduling-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.schedule-appointment-button.calendar-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgb(15 118 110 / 20%);
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.schedule-appointment-button.calendar-primary-action:hover:not(:disabled) {
+  background: var(--accent-dark);
+  box-shadow: 0 3px 8px rgb(15 118 110 / 24%);
+}
+
+.schedule-appointment-button.calendar-primary-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.schedule-appointment-button.calendar-primary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 850px) {
+  .calendar-scheduling-action {
+    justify-content: flex-start;
+  }
+}
