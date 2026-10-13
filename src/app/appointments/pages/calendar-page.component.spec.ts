@@ -124,6 +124,31 @@ describe('CalendarPageComponent', () => {
     return composed;
   }
 
+  function addSixAppointmentsToOctoberSixteenth(): void {
+    const component = fixture.componentInstance as unknown as {
+      fixtureAppointments: { set: (appointments: readonly unknown[]) => void };
+    };
+    const appointments = fixture.componentInstance.appointments();
+    const schedulable = appointments.find((appointment) => appointment.id === 'appointment-demo-001')!;
+
+    component.fixtureAppointments.set([
+      ...appointments,
+      ...['001', '002', '003', '004'].map((suffix, index) => ({
+        ...schedulable,
+        id: `preview-extra-${suffix}`,
+        startAt: `2026-10-16T${String(index + 15).padStart(2, '0')}:00:00-05:00`,
+        endAt: `2026-10-16T${String(index + 15).padStart(2, '0')}:30:00-05:00`,
+      })),
+    ]);
+    fixture.detectChanges();
+  }
+
+  function openOctoberSixteenthPreview(element: HTMLElement): void {
+    element.querySelector<HTMLElement>('[data-calendar-day][data-date="2026-10-16"]')
+      ?.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+  }
+
   it('renders calendar navigation and month/week view controls', () => {
     const element =
       fixture.nativeElement as HTMLElement;
@@ -250,6 +275,176 @@ describe('CalendarPageComponent', () => {
     expect(
       decemberDay?.dataset['currentMonth'],
     ).toBe('false');
+  });
+
+  it('opens an ordered daily preview on hover without selecting an appointment', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const day = element.querySelector<HTMLElement>(
+      '[data-calendar-day][data-date="2026-10-16"]',
+    );
+
+    day?.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+
+    const preview = element.querySelector<HTMLElement>(
+      '[data-daily-appointment-preview="2026-10-16"]',
+    );
+    const appointments = Array.from(
+      preview?.querySelectorAll<HTMLElement>('[data-daily-preview-appointment]') ?? [],
+    ).map((item) => item.textContent?.trim());
+
+    expect(preview?.textContent).toContain('16 de octubre de 2026');
+    expect(preview?.textContent).toContain('2 citas');
+    expect(appointments).toHaveLength(2);
+    expect(appointments[0]).toContain('1:00 p. m.');
+    expect(appointments[1]).toContain('2:00 p. m.');
+    expect(element.querySelector('[data-selected-appointment]')).toBeNull();
+    expect(day?.textContent).not.toContain('Ver 2 citas');
+    expect(element.querySelector('[data-calendar-grid]')?.contains(preview)).toBe(false);
+  });
+
+  it('keeps compact full-time indicators and calculates the overflow badge', () => {
+    const component = fixture.componentInstance as unknown as {
+      fixtureAppointments: { set: (appointments: readonly unknown[]) => void };
+    };
+    const appointments = fixture.componentInstance.appointments();
+    const octoberSixteenth = appointments.find((appointment) => appointment.id === 'appointment-demo-015')!;
+
+    component.fixtureAppointments.set([
+      ...appointments,
+      { ...octoberSixteenth, id: 'preview-extra-001', startAt: '2026-10-16T15:00:00-05:00', endAt: '2026-10-16T15:30:00-05:00' },
+      { ...octoberSixteenth, id: 'preview-extra-002', startAt: '2026-10-16T16:00:00-05:00', endAt: '2026-10-16T16:30:00-05:00' },
+    ]);
+    fixture.detectChanges();
+
+    const day = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[data-calendar-day][data-date="2026-10-16"]',
+    );
+
+    expect(day?.querySelector('[data-calendar-appointment="appointment-demo-015"]')?.textContent).toContain('13:00');
+    expect(day?.querySelector('[data-calendar-more]')?.textContent?.trim()).toBe('+2');
+  });
+
+  it('keeps the floating preview open after pointer movement and closes on outside click', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const day = element.querySelector<HTMLElement>(
+      '[data-calendar-day][data-date="2026-10-16"]',
+    )!;
+
+    day.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+    day.dispatchEvent(new MouseEvent('pointerleave', { relatedTarget: document.body }));
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-daily-appointment-preview="2026-10-16"]')).not.toBeNull();
+
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-daily-appointment-preview]')).toBeNull();
+  });
+
+  it('shows six appointments with two compact chips and a +4 overflow indicator', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    addSixAppointmentsToOctoberSixteenth();
+
+    const day = element.querySelector<HTMLElement>('[data-calendar-day][data-date="2026-10-16"]')!;
+
+    expect(day.querySelectorAll('[data-calendar-appointment]')).toHaveLength(2);
+    expect(day.querySelector('[data-calendar-more]')?.textContent?.trim()).toBe('+4');
+  });
+
+  it.each([
+    'appointment-demo-015',
+    'preview-extra-001',
+    'preview-extra-003',
+    'preview-extra-004',
+  ])('selects preview appointment %s regardless of its position', (appointmentId) => {
+    const element = fixture.nativeElement as HTMLElement;
+    addSixAppointmentsToOctoberSixteenth();
+    openOctoberSixteenthPreview(element);
+
+    element.querySelector<HTMLButtonElement>(`[data-daily-preview-appointment="${appointmentId}"]`)?.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain(appointmentId);
+  });
+
+  it('keeps the final preview appointment selectable after scrolling and keyboard focus', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    addSixAppointmentsToOctoberSixteenth();
+    openOctoberSixteenthPreview(element);
+
+    const list = element.querySelector<HTMLElement>('.daily-appointment-list')!;
+    const finalAppointment = element.querySelector<HTMLButtonElement>('[data-daily-preview-appointment="preview-extra-004"]')!;
+    list.scrollTop = list.scrollHeight;
+    finalAppointment.focus();
+    finalAppointment.click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-selected-appointment]')?.textContent).toContain('preview-extra-004');
+    expect(element.querySelector('[data-appointment-confirm]')).not.toBeNull();
+  });
+
+  it('selects a preview appointment using the existing details panel', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const day = element.querySelector<HTMLElement>(
+      '[data-calendar-day][data-date="2026-10-16"]',
+    );
+    day?.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+
+    element
+      .querySelector<HTMLButtonElement>('[data-daily-preview-appointment="appointment-demo-completion-001"]')
+      ?.click();
+    fixture.detectChanges();
+
+    const details = element.querySelector<HTMLElement>('[data-selected-appointment]');
+
+    expect(details?.textContent).toContain('appointment-demo-completion-001');
+    expect(details?.querySelector('[data-appointment-complete]')).not.toBeNull();
+    expect(element.querySelector('[data-daily-appointment-preview]')).not.toBeNull();
+
+    element.querySelector<HTMLButtonElement>('[data-daily-preview-appointment="appointment-demo-015"]')?.click();
+    fixture.detectChanges();
+
+    expect(details?.textContent).toContain('appointment-demo-015');
+  });
+
+  it('closes the preview with Escape without changing appointment state', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const day = element.querySelector<HTMLElement>(
+      '[data-calendar-day][data-date="2026-10-16"]',
+    );
+    day?.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+
+    element
+      .querySelector<HTMLElement>('[data-daily-appointment-preview="2026-10-16"]')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-daily-appointment-preview]')).toBeNull();
+    expect(element.querySelector('[data-selected-appointment]')).toBeNull();
+  });
+
+  it('offers an explicit keyboard and touch control for the daily preview', () => {
+    const element = fixture.nativeElement as HTMLElement;
+    const trigger = element.querySelector<HTMLButtonElement>(
+      '[data-daily-preview-trigger="2026-10-16"]',
+    );
+
+    trigger?.click();
+    fixture.detectChanges();
+
+    expect(trigger?.getAttribute('aria-expanded')).toBe('true');
+    expect(element.querySelector('[data-daily-appointment-preview="2026-10-16"]')).not.toBeNull();
+
+    trigger?.click();
+    trigger?.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(trigger?.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('switches from the month grid to the selected week', () => {
