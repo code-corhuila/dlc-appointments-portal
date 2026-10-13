@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  HostListener,
   computed,
   inject,
   signal,
@@ -130,21 +131,42 @@ const MONTH_NAMES = [
 
             <div
               class="calendar-grid"
+              data-calendar-grid
               aria-label="Días del calendario"
             >
               @for (day of days(); track day.date) {
-                <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth">
+                @let dailyAppointments = appointmentsForDate(day.date);
+                <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (pointerenter)="openDailyPreview(day.date, $event)" (keydown.escape)="closeDailyPreview()">
                   <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
-                  @for (appointment of appointmentsForDate(day.date).slice(0, 3); track appointment.id) {
+                  @for (appointment of dailyAppointments.slice(0, 2); track appointment.id) {
                     <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" (click)="selectAppointment(appointment)">
-                      {{ appointment.startAt.slice(11, 16) }} · {{ appointment.reason ?? 'Cita' }} · {{ appointment.status }}
+                      {{ appointment.startAt.slice(11, 16) }}<span class="visually-hidden">{{ appointment.status }}</span>
                     </button>
                   }
-                  @if (appointmentsForDate(day.date).length > 3) { <span class="calendar-appointment-label">+{{ appointmentsForDate(day.date).length - 3 }} más</span> }
+                  @if (dailyAppointments.length > 2) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - 2 }}</button> }
+                  @if (dailyAppointments.length) {
+                    <button type="button" class="calendar-day-preview-trigger" [attr.data-daily-preview-trigger]="day.date" [attr.aria-expanded]="dailyPreviewDate() === day.date" [attr.aria-controls]="'daily-preview-' + day.date" [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (focus)="openDailyPreview(day.date, $event)" (click)="openDailyPreview(day.date, $event)">
+                      <span aria-hidden="true">⌄</span>
+                    </button>
+                  }
                 </div>
               }
             </div>
           </section>
+
+          @if (dailyPreviewDate(); as previewDate) {
+            <section class="daily-appointment-preview" [attr.id]="'daily-preview-' + previewDate" [attr.data-daily-appointment-preview]="previewDate" role="region" [attr.aria-label]="'Citas del ' + formatAppointmentDate(previewDate)" tabindex="-1" [style.top.px]="dailyPreviewPosition().top" [style.left.px]="dailyPreviewPosition().left" (keydown.escape)="closeDailyPreview()">
+              <header><div><strong>{{ formatAppointmentDate(previewDate) }}</strong><span>{{ dailyPreviewAppointments().length }} {{ dailyPreviewAppointments().length === 1 ? 'cita' : 'citas' }}</span></div><button type="button" aria-label="Cerrar vista previa de citas" (click)="closeDailyPreview()">×</button></header>
+              <div class="daily-appointment-list" role="list">
+                @for (appointment of dailyPreviewAppointments(); track appointment.id) {
+                  <button type="button" [attr.data-daily-preview-appointment]="appointment.id" (click)="selectPreviewAppointment(appointment)">
+                    <time>{{ formatAppointmentTime(appointment.startAt) }} – {{ formatAppointmentTime(appointment.endAt) }}</time>
+                    <span>{{ appointment.reason ?? 'Cita' }}</span><em>{{ appointment.status }}</em>
+                  </button>
+                }
+              </div>
+            </section>
+          }
 
           @if (canScheduleAppointment()) {
             <div class="calendar-scheduling-action">
@@ -315,6 +337,8 @@ export class CalendarPageComponent {
   readonly appointments = computed(() => [...this.fixtureAppointments(), ...this.demoAppointments.appointments()]);
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  readonly dailyPreviewDate = signal<string | null>(null);
+  readonly dailyPreviewPosition = signal({ top: 16, left: 16 });
   readonly appointmentNotice = signal<string | null>(null);
   readonly appointmentTime = signal<string | null>(null);
   readonly appointmentService = signal<string | null>(null);
@@ -343,6 +367,11 @@ export class CalendarPageComponent {
     ) ?? false,
   );
 
+  readonly dailyPreviewAppointments = computed(() => {
+    const date = this.dailyPreviewDate();
+    return date ? this.appointmentsForDate(date) : [];
+  });
+
   constructor() {
     const state = this.router?.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
     if (!state?.appointmentId || !state.appointmentDate) return;
@@ -360,14 +389,17 @@ export class CalendarPageComponent {
   dismissAppointmentNotice(): void { if (this.noticeTimeout) clearTimeout(this.noticeTimeout); this.noticeTimeout = undefined; this.appointmentNotice.set(null); this.appointmentTime.set(null); this.appointmentService.set(null); }
 
   selectView(view: CalendarView): void {
+    this.closeDailyPreview();
     this.view.set(view);
   }
 
   previousPeriod(): void {
+    this.closeDailyPreview();
     this.navigatePeriod(-1);
   }
 
   nextPeriod(): void {
+    this.closeDailyPreview();
     this.navigatePeriod(1);
   }
 
@@ -398,9 +430,42 @@ export class CalendarPageComponent {
   }
 
   appointmentsForDate(date: string): readonly Appointment[] {
-    return this.appointments().filter((appointment) =>
-      appointment.startAt.startsWith(date),
-    );
+    return this.appointments()
+      .filter((appointment) => appointment.startAt.startsWith(date))
+      .sort((first, second) => first.startAt.localeCompare(second.startAt));
+  }
+
+  openDailyPreview(date: string, event?: Event): void {
+    if (!this.appointmentsForDate(date).length) return;
+    if (this.dailyPreviewDate() && this.dailyPreviewDate() !== date && event?.type !== 'click') return;
+    if (event instanceof MouseEvent) event.stopPropagation();
+    this.dailyPreviewDate.set(date);
+    const day = (event?.currentTarget as HTMLElement | null)?.closest<HTMLElement>('[data-calendar-day]');
+    if (!day) return;
+    const rect = day.getBoundingClientRect();
+    const width = 344;
+    const height = 420;
+    const left = rect.right + width + 16 > window.innerWidth ? rect.left - width - 16 : rect.right + 16;
+    const top = rect.bottom + height + 16 > window.innerHeight ? rect.bottom - height : rect.top;
+    this.dailyPreviewPosition.set({
+      left: Math.max(16, Math.min(left, window.innerWidth - width - 16)),
+      top: Math.max(16, Math.min(top, window.innerHeight - height - 16)),
+    });
+  }
+
+  closeDailyPreview(): void {
+    this.dailyPreviewDate.set(null);
+  }
+
+  selectPreviewAppointment(appointment: Appointment): void {
+    this.selectAppointment(appointment);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeDailyPreviewOnOutsideClick(event: MouseEvent): void {
+    if (!(event.target instanceof HTMLElement) || !event.target.closest('[data-daily-appointment-preview]')) {
+      this.closeDailyPreview();
+    }
   }
 
   selectAppointmentForDate(date: string): void {

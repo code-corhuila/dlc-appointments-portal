@@ -198,10 +198,10 @@ button:focus-visible {
 
 .calendar-day .calendar-appointment-label {
   display: block;
-  width: 100%;
-  overflow: hidden;
+  width: fit-content;
+  overflow: visible;
   text-align: left;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
