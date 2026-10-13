@@ -1,0 +1,14 @@
+node_modules
+dist
+.angular
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+
+npm-debug.log*
