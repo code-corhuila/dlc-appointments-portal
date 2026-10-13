@@ -2,7 +2,11 @@ import {
   ComponentFixture,
   TestBed,
 } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { vi } from 'vitest';
 
+import { CompositionNavigationService } from '../../composition-navigation.service';
+import { SHELL_CONTEXT } from '../../shell-contract';
 import {
   CALENDAR_SUPPORT_DATA_SOURCE,
   CALENDAR_SUPPORT_FIXTURE_DATA,
@@ -43,6 +47,82 @@ describe('CalendarPageComponent', () => {
       'America/Bogota',
     );
   });
+
+  it.each(['ADMINISTRATOR', 'SECRETARY_ASSISTANT'])(
+    'renders the scheduling action for %s',
+    async (role) => {
+      const composed = await createCalendarForRoles([role]);
+
+      expect(
+        composed.nativeElement.querySelector('[data-schedule-appointment]')?.textContent?.trim(),
+      ).toBe('+ Agendar nueva cita');
+    },
+  );
+
+  it('renders the scheduling action as a primary styled button', async () => {
+    const composed = await createCalendarForRoles(['ADMINISTRATOR']);
+
+    expect(
+      composed.nativeElement.querySelector(
+        'button[data-schedule-appointment].calendar-primary-action',
+      ),
+    ).not.toBeNull();
+  });
+
+  it('does not render the scheduling action for an unsupported role', async () => {
+    const composed = await createCalendarForRoles(['DENTIST']);
+
+    expect(composed.nativeElement.querySelector('[data-schedule-appointment]')).toBeNull();
+  });
+
+  it('uses shell navigation to request the composed scheduling route', async () => {
+    const request = vi.fn();
+    const composed = await createCalendarForRoles(['ADMINISTRATOR'], request);
+
+    (composed.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-schedule-appointment]')?.click();
+
+    expect(request).toHaveBeenCalledWith({ path: '/app/appointments/new' });
+  });
+
+  it('retains Angular Router navigation as the standalone fallback', async () => {
+    const navigate = vi.fn();
+    const composed = await createCalendarForRoles(['ADMINISTRATOR'], undefined, navigate);
+
+    (composed.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-schedule-appointment]')?.click();
+
+    expect(navigate).toHaveBeenCalledWith(['/new']);
+  });
+
+  async function createCalendarForRoles(
+    roles: readonly string[],
+    request?: ReturnType<typeof vi.fn>,
+    navigate?: ReturnType<typeof vi.fn>,
+  ): Promise<ComponentFixture<CalendarPageComponent>> {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CalendarPageComponent],
+      providers: [
+        { provide: CALENDAR_SUPPORT_DATA_SOURCE, useValue: CALENDAR_SUPPORT_FIXTURE_DATA },
+        {
+          provide: SHELL_CONTEXT,
+          useValue: {
+            session: { getSnapshot: () => ({ user: { id: 'demo-user', roles } }) },
+            navigation: { request: request ?? vi.fn() },
+          },
+        },
+        ...(request ? [CompositionNavigationService] : []),
+        ...(navigate ? [{
+          provide: Router,
+          useValue: { navigate, getCurrentNavigation: () => null },
+        }] : []),
+      ],
+    }).compileComponents();
+    const composed = TestBed.createComponent(CalendarPageComponent);
+    composed.detectChanges();
+    return composed;
+  }
 
   it('renders calendar navigation and month/week view controls', () => {
     const element =
