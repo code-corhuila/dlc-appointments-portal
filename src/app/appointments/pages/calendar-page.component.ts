@@ -19,6 +19,13 @@ import { CalendarView } from '../domain/calendar-range';
 import { Appointment } from '../model/appointment';
 import { AppointmentActionsComponent } from './appointment-actions.component';
 import { Router } from '@angular/router';
+import { CompositionNavigationService } from '../../composition-navigation.service';
+import { SHELL_CONTEXT } from '../../shell-contract';
+
+const SCHEDULING_ROLES = new Set([
+  'ADMINISTRATOR',
+  'SECRETARY_ASSISTANT',
+]);
 
 const MONTH_NAMES = [
   'enero',
@@ -139,6 +146,19 @@ const MONTH_NAMES = [
             </div>
           </section>
 
+          @if (canScheduleAppointment()) {
+            <div class="calendar-scheduling-action">
+              <button
+                type="button"
+                class="schedule-appointment-button calendar-primary-action"
+                data-schedule-appointment
+                (click)="scheduleAppointment()"
+              >
+                + Agendar nueva cita
+              </button>
+            </div>
+          }
+
           @if (selectedAppointment(); as appointment) {
             <section
               class="calendar-panel selected-appointment-panel"
@@ -258,6 +278,11 @@ export class CalendarPageComponent {
   );
   private readonly demoAppointments = inject(DemoAppointmentStore);
   private readonly router = inject(Router, { optional: true });
+  private readonly compositionNavigation = inject(
+    CompositionNavigationService,
+    { optional: true },
+  );
+  private readonly shellContext = inject(SHELL_CONTEXT, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
   private noticeTimeout?: ReturnType<typeof setTimeout>;
 
@@ -312,6 +337,12 @@ export class CalendarPageComponent {
       : this.weekLabel(),
   );
 
+  readonly canScheduleAppointment = computed(() =>
+    this.shellContext?.session.getSnapshot().user?.roles.some((role) =>
+      SCHEDULING_ROLES.has(role),
+    ) ?? false,
+  );
+
   constructor() {
     const state = this.router?.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
     if (!state?.appointmentId || !state.appointmentDate) return;
@@ -338,6 +369,14 @@ export class CalendarPageComponent {
 
   nextPeriod(): void {
     this.navigatePeriod(1);
+  }
+
+  scheduleAppointment(): void {
+    if (this.compositionNavigation) {
+      void this.compositionNavigation.request({ localPath: '/new' });
+      return;
+    }
+    void this.router?.navigate(['/new']);
   }
 
   dayNumber(date: string): number {
