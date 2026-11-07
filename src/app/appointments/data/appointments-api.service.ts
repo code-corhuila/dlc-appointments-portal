@@ -1,4 +1,3 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -7,11 +6,9 @@ import {
   AppointmentListQuery,
   CancelAppointmentRequest,
   ConfirmAppointmentRequest,
-  ConfirmationReceipt,
   EndClinicalAssignmentRequest,
   ExpectedVersionRequest,
   NoShowAppointmentRequest,
-  PublicConfirmationRequest,
   RescheduleAppointmentRequest,
 } from '../model/appointment-operations';
 import {
@@ -24,26 +21,24 @@ import {
   CreateClinicalAssignmentRequest,
 } from '../model/clinical-assignment';
 import { Page } from '../model/page';
+import { ShellHttp } from './shell-http';
 
+/** Appointments operations of the Gateway-facing contract, sent only through dlc-front `context.http`. */
 @Injectable({
   providedIn: 'root',
 })
 export class AppointmentsApiService {
-  private readonly http = inject(HttpClient);
+  private readonly http = inject(ShellHttp);
   private readonly baseUrl = '/api/v1';
 
   listAppointments(
     query: AppointmentListQuery = {},
   ): Observable<Page<Appointment>> {
-    return this.http.get<Page<Appointment>>(`${this.baseUrl}/appointments`, {
-      params: this.toParams(query),
-    });
+    return this.get<Page<Appointment>>('/appointments', query);
   }
 
   getAppointment(id: string): Observable<Appointment> {
-    return this.http.get<Appointment>(
-      `${this.baseUrl}${this.appointmentPath(id)}`,
-    );
+    return this.get<Appointment>(this.appointmentPath(id));
   }
 
   createAppointment(
@@ -129,46 +124,30 @@ export class AppointmentsApiService {
     );
   }
 
-  confirmPublicAppointment(
-    request: PublicConfirmationRequest,
-  ): Observable<ConfirmationReceipt> {
-    return this.http.post<ConfirmationReceipt>(
-      `${this.baseUrl}/appointment-confirmations`,
-      request,
-    );
-  }
 
   getDentistAvailability(id: string): Observable<DentistAvailability> {
-    return this.http.get<DentistAvailability>(
-      `${this.baseUrl}/dentists/${encodeURIComponent(id)}/availability`,
-    );
+    return this.get<DentistAvailability>(this.availabilityPath(id));
   }
 
   updateDentistAvailability(
     id: string,
     request: UpdateDentistAvailabilityRequest,
   ): Observable<DentistAvailability> {
-    return this.http.put<DentistAvailability>(
-      `${this.baseUrl}/dentists/${encodeURIComponent(id)}/availability`,
-      request,
-    );
+    return this.http.request<DentistAvailability>({
+      method: 'PUT',
+      path: `${this.baseUrl}${this.availabilityPath(id)}`,
+      body: request,
+    });
   }
 
   listClinicalAssignments(
     query: ClinicalAssignmentListQuery = {},
   ): Observable<Page<ClinicalAssignment>> {
-    return this.http.get<Page<ClinicalAssignment>>(
-      `${this.baseUrl}/clinical-assignments`,
-      {
-        params: this.toParams(query),
-      },
-    );
+    return this.get<Page<ClinicalAssignment>>('/clinical-assignments', query);
   }
 
   getClinicalAssignment(id: string): Observable<ClinicalAssignment> {
-    return this.http.get<ClinicalAssignment>(
-      `${this.baseUrl}/clinical-assignments/${encodeURIComponent(id)}`,
-    );
+    return this.get<ClinicalAssignment>(`/clinical-assignments/${encodeURIComponent(id)}`);
   }
 
   createClinicalAssignment(
@@ -194,6 +173,10 @@ export class AppointmentsApiService {
     );
   }
 
+  private availabilityPath(id: string): string {
+    return `/dentists/${encodeURIComponent(id)}/availability`;
+  }
+
   private appointmentPath(id: string): string {
     return `/appointments/${encodeURIComponent(id)}`;
   }
@@ -203,22 +186,21 @@ export class AppointmentsApiService {
     body: unknown,
     idempotencyKey: string,
   ): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}${path}`, body, {
+    return this.http.request<T>({
+      method: 'POST',
+      path: `${this.baseUrl}${path}`,
+      body,
       headers: {
         'Idempotency-Key': idempotencyKey,
       },
     });
   }
 
-  private toParams(values: object): HttpParams {
-    let params = new HttpParams();
-
-    for (const [key, value] of Object.entries(values)) {
-      if (value !== undefined && value !== null) {
-        params = params.set(key, String(value));
-      }
-    }
-
-    return params;
+  private get<T>(path: string, query: object = {}): Observable<T> {
+    return this.http.request<T>({
+      method: 'GET',
+      path: `${this.baseUrl}${path}`,
+      query: ShellHttp.query(query),
+    });
   }
 }

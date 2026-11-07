@@ -67,7 +67,7 @@ export async function mount(
     app.bootstrap(AppointmentsRootComponent, root);
   } catch (error) {
     unmount();
-    if (!context.signal?.aborted) context.reportError?.(error);
+    if (!context.signal?.aborted) context.reportFailure?.(error);
     throw error;
   }
 
