@@ -10,7 +10,13 @@ export type ApiErrorCode =
   | 'BUSINESS_RULE_VIOLATION'
   | 'TOO_MANY_REQUESTS'
   | 'INTERNAL_ERROR'
-  | 'SERVICE_UNAVAILABLE';
+  | 'SERVICE_UNAVAILABLE'
+  // dlc-front transport outcomes (C06) that never reach the owner service.
+  | 'SESSION_UNAVAILABLE'
+  | 'INVALID_REQUEST'
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'CANCELLED';
 
 export interface ApiError {
   readonly error: ApiErrorCode;
