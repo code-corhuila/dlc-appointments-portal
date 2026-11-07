@@ -6,7 +6,7 @@
 - **Repository:** [code-corhuila/dlc-appointments-portal](https://github.com/code-corhuila/dlc-appointments-portal)
 - **Main frontend (shell):** [code-corhuila/dlc-front](https://github.com/code-corhuila/dlc-front)
 - **Governance and API contracts:** [code-corhuila/dlc-docs](https://github.com/code-corhuila/dlc-docs)
-- **Current scope:** Angular UI, demonstration workflows, and visual integration with `dlc-front`. **This is not a fully integrated production workflow.**
+- **Current scope:** Appointments UI composed in `dlc-front`, reading and writing real data through the shell transport (`context.http`) to the Gateway and the owner services: Appointments, Patients and IAM.
 
 ## 1. Technology stack
 
@@ -35,8 +35,8 @@ Start the portal with `npm start` using the existing Angular and Native Federati
 The `dlc-front` shell controls global navigation and dynamically loads:
 
 ```text
-/portals/appointments/0.1.0-demo/entry.js
-/portals/appointments/0.1.0-demo/entry.css
+/portals/appointments/2.1.0/entry.js
+/portals/appointments/2.1.0/entry.css
 ```
 
 `src/entry.ts` exports `portalId = 'appointments'`, `contractVersion = 1`, and `mount(host, context)`. Its lifecycle also supports `updateRoute()`, `canLeave()`, and `unmount()`. Importing `entry.js` **must not automatically mount** the Angular application.
@@ -52,13 +52,23 @@ The `dlc-front` shell controls global navigation and dynamically loads:
 
 Unknown routes display a 404 view. In composed mode, navigation should go through the shell instead of directly changing browser history.
 
-**Current limitation:** the composed demonstration uses synthetic data and local providers. Real service integration through `context.http`, session identity through `context.session`, full CSS isolation, and end-to-end acceptance are not yet verified or implemented. Do not assume the Angular `HttpClient` is already connected to the shell's transport.
+**Integration:** every API call goes through `context.http` (C06). The shell adds the session token and checks the operation catalogue, and the portal never holds a token or uses Angular `HttpClient`. The roles shown in each page come from `context.session` (C05), and each owner still enforces its own authorization. The release path is the `package.json` version (`scripts/release.mjs`).
+
+| Page | Source |
+| --- | --- |
+| Calendar, My calendar | `GET /api/v1/appointments`, shown at America/Bogota time |
+| New appointment | Patients `GET /api/v1/patients`, IAM `GET /api/v1/auth/dentists`, `GET /api/v1/dentists/{id}/availability`, `POST /api/v1/appointments` |
+| Lifecycle actions | `POST /api/v1/appointments/{id}/{confirmations,cancellations,reschedulings,attention-starts,no-shows,completions}` |
+| Availability | `GET`/`PUT /api/v1/dentists/{id}/availability` |
+| Clinical assignments | `GET`/`POST /api/v1/clinical-assignments`, `POST /api/v1/clinical-assignments/{id}/endings` (Administrator, Secretary/Assistant) |
+
+Outside the composition (standalone `npm start`), there is no shell transport, and requests fail as `SERVICE_UNAVAILABLE`.
 
 ## 3. Prerequisites
 
 - Git.
 - **Node.js 22** and npm.
-- Docker Desktop or Docker Engine with Docker Compose for the container demonstration.
+- Docker Desktop or Docker Engine with Docker Compose for the container.
 - Available local ports: `4200` for Angular, `4177` for the Appointments container, and `8080` for `dlc-front`.
 - A separate checkout of `dlc-front` for the composed integration test.
 
@@ -117,7 +127,7 @@ npm run verify:entry
 The `build:entry` task produces:
 
 ```text
-dist/site/portals/appointments/0.1.0-demo/
+dist/site/portals/appointments/2.1.0/
   entry.js
   entry.css
 ```
@@ -142,16 +152,16 @@ These totals are from **different historical runs**, not a single current test e
 From this repository's root:
 
 ```cmd
-docker compose -f deploy/compose.yml up -d --build appointments-portal-demo
+docker compose -f deploy/compose.yml up -d --build appointments-portal-dlc-front
 ```
 
-The `appointments-portal-demo` service maps host port **4177** to Nginx port **80** in the container and connects to the shared Docker network named `dlc-front`.
+The `appointments-portal-dlc-front` service maps host port **4177** to Nginx port **80** in the container and connects to the shared Docker network named `dlc-front`.
 
 Check the published assets:
 
 ```cmd
-curl.exe -I http://localhost:4177/portals/appointments/0.1.0-demo/entry.js
-curl.exe -I http://localhost:4177/portals/appointments/0.1.0-demo/entry.css
+curl.exe -I http://localhost:4177/portals/appointments/2.1.0/entry.js
+curl.exe -I http://localhost:4177/portals/appointments/2.1.0/entry.css
 ```
 
 Expected behavior: **HTTP 200** for existing assets, appropriate MIME types, and `Cache-Control: no-store`. Missing resources under `/portals/` must return **404** instead of falling back to `index.html`.
@@ -162,19 +172,19 @@ List running containers and published ports:
 docker ps --format "table {{.Names}}\t{{.Ports}}"
 ```
 
-Stop only the Appointments demo service:
+Stop only the Appointments portal service:
 
 ```cmd
-docker compose -f deploy/compose.yml stop appointments-portal-demo
+docker compose -f deploy/compose.yml stop appointments-portal-dlc-front
 ```
 
 Start that existing container again:
 
 ```cmd
-docker compose -f deploy/compose.yml start appointments-portal-demo
+docker compose -f deploy/compose.yml start appointments-portal-dlc-front
 ```
 
-Avoid `docker compose down` during the availability demonstration; it may remove project-managed networks and other services.
+Avoid `docker compose down` during the availability check; it may remove project-managed networks and other services.
 
 ## 7. Run and test the integration with `dlc-front`
 
@@ -184,12 +194,12 @@ Run this section **from the root of the separate `dlc-front` repository**, with 
 docker compose -f deploy/compose.yml up -d --build dlc-front
 ```
 
-The shell is available at `http://localhost:8080` and proxies the Appointments assets to `appointments-portal-demo:80` through the shared `dlc-front` Docker network.
+The shell is available at `http://localhost:8080` and proxies the Appointments assets to `appointments-portal-dlc-front:80` through the shared `dlc-front` Docker network.
 
 Verify the proxy before opening the UI:
 
 ```cmd
-curl.exe -I http://localhost:8080/portals/appointments/0.1.0-demo/entry.js
+curl.exe -I http://localhost:8080/portals/appointments/2.1.0/entry.js
 ```
 
 Then test the following routes in your browser:
@@ -197,9 +207,9 @@ Then test the following routes in your browser:
 - [Appointments — Calendar](http://localhost:8080/app/appointments/calendar)
 - [Availability and Slots](http://localhost:8080/app/appointments/availability)
 
-**Availability demonstration:** first confirm that both screens render within the `dlc-front` shell and retain its sidebar. Next, stop **only** `appointments-portal-demo` and verify that the shell displays its unavailable-section state. Restart the Appointments container and confirm recovery. Sidebar links may remain visible while the remote portal is down.
+**Availability check:** first confirm that both screens render within the `dlc-front` shell and retain its sidebar. Next, stop **only** `appointments-portal-dlc-front` and verify that the shell displays its unavailable-section state. Restart the Appointments container and confirm recovery. Sidebar links may remain visible while the remote portal is down.
 
-**Clinical network dependency:** the current `dlc-front` Compose configuration also refers to the external `dlc-clinical-portal_default` network. If it is missing, inspect `docker network ls` and the Clinical deployment configuration. For an isolated local demo, an empty external network can be created using `docker network create dlc-clinical-portal_default`; **this does not start Clinical or establish that Clinical works**. A real Clinical deployment must be configured separately.
+**Clinical network dependency:** the current `dlc-front` Compose configuration also refers to the external `dlc-clinical-portal_default` network. If it is missing, inspect `docker network ls` and the Clinical deployment configuration. For an isolated local check, an empty external network can be created using `docker network create dlc-clinical-portal_default`; **this does not start Clinical or establish that Clinical works**. A real Clinical deployment must be configured separately.
 
 ### Troubleshooting
 
@@ -208,7 +218,7 @@ Then test the following routes in your browser:
 | Port `8080` is already allocated | Run `docker ps` and identify its owner; do not stop unrelated containers without checking. |
 | The module responds on `4177` but not on `8080` | Check the `dlc-front` container, the shared network, and the Nginx proxy configuration. |
 | The Clinical external network is missing | Check Docker networks and the corresponding Clinical deployment. |
-| `entry.js` returns 404 | Run `npm run build:entry`, rebuild the image, and confirm the `0.1.0-demo` asset path. |
+| `entry.js` returns 404 | Run `npm run build:entry`, rebuild the image, and confirm the `2.1.0` asset path. |
 | JavaScript returns 200 but the UI stays blank | Inspect the browser console, `src/entry.ts` mounting behavior, and shell/portal routing. |
 | Angular reports a CSS budget warning | Historical Calendar/Scheduling CSS warnings were non-blocking; do not assume they caused a runtime failure. |
 
@@ -275,21 +285,18 @@ git pull --ff-only origin develop
 
 See the official [branching policy](https://github.com/code-corhuila/dlc-docs/blob/main/00-governance/branching-policy.md).
 
-## 9. Demonstration features and limitations
+## 9. Features and dependencies
 
-The frontend includes an administrative calendar, availability and slots, appointment scheduling, appointment lifecycle actions, a dentist's personal calendar, and demonstration clinical assignments. Some flows use Angular services structured around API contracts; others use synthetic data and local state/providers.
+The portal provides the administrative calendar, availability and slots, appointment scheduling, the appointment lifecycle actions, the dentist's own calendar and clinical assignments. All of them use real data through the owner services. No synthetic data, demo profile or local store remains.
 
-**A working demonstration is not the same as functional acceptance.** Real IAM, roles, patients, persistence, conflicts, domain events, and backend service integration still need implementation or validation under their respective user stories.
-
-Related documentation:
-
-- [Approved user stories and requirements](https://github.com/code-corhuila/dlc-docs/blob/main/04-requirements/user-stories.md)
-- [HU-APT-004 / integration — Issue #69](https://github.com/code-corhuila/dlc-docs/issues/69)
-- [Documentation repository](https://github.com/code-corhuila/dlc-docs)
+Dependencies:
+- `dlc-iam-api` must implement `GET /api/v1/auth/dentists` (`code-corhuila/dlc-docs#164`), and the `dlc-front` operation catalogue must include it. Until then, the dentist selector is empty for Administrator and Secretary/Assistant.
+- Patient names require the `patients:read` permission in the IAM token. When Patients denies access, the portal shows "Paciente sin acceso".
+- The waiting list remains deferred (`12-ux-ui/navigation-map.md`).
 
 ## 10. Security and repository boundaries
 
-Never commit passwords, tokens, private keys, certificates, or `.env` files. Authentication, identity, and authorization belong to the shell and the owning services; demonstration roles and profiles **do not grant real permissions**.
+Never commit passwords, tokens, private keys, certificates, or `.env` files. Authentication, identity, and authorization belong to the shell and the owning services; roles shown by the portal **do not grant permissions**; each owner service authorizes every request.
 
 This frontend must not duplicate the gateway, manage JWT credentials, or implement backend persistence rules. Check current authoritative architecture decisions and API contracts before implementing production integrations.
 
