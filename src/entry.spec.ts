@@ -91,6 +91,6 @@ describe('appointments composition entry', () => {
   });
 
   function context(route: { localPath: string }, signal?: AbortSignal) {
-    return { route, signal, http: { request: async () => ({ status: 200, body: {} }) }, session: { getSnapshot: () => ({ user: null }), subscribe: () => () => {} }, navigation: { request: () => {} } } as never;
+    return { route, signal, http: { request: async () => ({ ok: true, status: 200, data: { data: [], meta: { page: 1, limit: 100, total: 0, totalPages: 0 } }, headers: {}, correlationId: 'c-1' }) }, session: { getSnapshot: () => ({ user: null }), subscribe: () => () => {} }, navigation: { request: () => {} } } as never;
   }
 });

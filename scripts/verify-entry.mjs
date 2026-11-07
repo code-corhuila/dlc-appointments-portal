@@ -1,7 +1,9 @@
 import { access, readFile } from 'node:fs/promises';
 import { SourceTextModule } from 'node:vm';
 
-const output = new URL('../dist/site/portals/appointments/0.1.0-demo/', import.meta.url);
+import { entryDirectory as output, release } from './release.mjs';
+
+if (!/^\d+\.\d+\.\d+$/.test(release)) throw new Error(`Release ${release} is not a published version.`);
 const entry = new URL('entry.js', output);
 const stylesheet = new URL('entry.css', output);
 
