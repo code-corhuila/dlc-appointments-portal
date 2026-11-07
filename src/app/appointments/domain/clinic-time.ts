@@ -183,3 +183,26 @@ function formatUtcOffset(
     String(minutes).padStart(2, '0')
   );
 }
+
+const CLINIC_OFFSET_MINUTES = -5 * 60;
+
+/**
+ * An API instant (the Appointments API answers in UTC) as clinic wall time with the fixed clinic offset,
+ * so the calendar can read its date and time directly. America/Bogota has no daylight saving time.
+ */
+export function toClinicLocalDateTime(instant: string): string {
+  const milliseconds = Date.parse(instant);
+  if (!/T/.test(instant) || Number.isNaN(milliseconds)) {
+    throw new Error('Invalid instant');
+  }
+  const local = new Date(milliseconds + CLINIC_OFFSET_MINUTES * MINUTE_IN_MILLISECONDS);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}T${pad(
+    local.getUTCHours(),
+  )}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}${CLINIC_UTC_OFFSET}`;
+}
+
+/** The clinic calendar date (YYYY-MM-DD) of a moment. */
+export function clinicToday(now: Date): string {
+  return toClinicLocalDateTime(now.toISOString()).slice(0, 10);
+}
