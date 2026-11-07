@@ -1,7 +1,8 @@
 import { access, cp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 
+import { entryDirectory as output } from './release.mjs';
+
 const build = new URL('../dist/composition-entry/browser/', import.meta.url);
-const output = new URL('../dist/site/portals/appointments/0.1.0-demo/', import.meta.url);
 
 await access(build);
 await rm(output, { recursive: true, force: true });
