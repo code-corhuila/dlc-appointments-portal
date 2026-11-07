@@ -111,45 +111,6 @@
           </div>
         </div>
 
-        <div class="details-grid">
-          <div>
-            <label for="specialty">
-              Especialidad Requerida
-            </label>
-
-            <select
-              id="specialty"
-              (change)="selectSpecialty($any($event.target).value)">
-              <option value="">
-                Seleccionar especialidad
-              </option>
-
-              @for (specialty of specialties; track specialty.id) {
-                <option [value]="specialty.id">{{ specialty.name }}</option>
-              }
-            </select>
-          </div>
-
-          <div>
-            <label for="consultation-type">
-              Tipo de Consulta
-            </label>
-
-            <select
-              id="consultation-type"
-              [disabled]="!selectedSpecialty()"
-              (change)="selectConsultation($any($event.target).value)">
-              <option value="">
-                Seleccionar tipo de consulta
-              </option>
-
-              @for (consultation of consultations(); track consultation) {
-                <option [value]="consultation">{{ consultation }}</option>
-              }
-            </select>
-          </div>
-        </div>
-
         <div class="date-section">
           <div class="field-heading">
             <label>Fecha Disponible</label>
@@ -283,32 +244,6 @@
           }
         </select>
 
-        @if (selectedSpecialty()) {
-          <div class="specialist-options" aria-label="Odontólogos demostrativos">
-            @for (dentist of dentists(); track dentist.id) {
-              <button
-                type="button"
-                class="specialist-option"
-                data-demo-dentist
-                [attr.aria-pressed]="selectedDentistId() === dentist.id"
-                (click)="selectDentist(dentist.id)">
-                <span class="specialist-photo" aria-hidden="true">♙</span>
-                <span class="specialist-info">
-                  <strong>{{ dentist.name }}</strong>
-                  <span>{{ selectedSpecialtyName() }} · Demostración</span>
-                </span>
-              </button>
-            }
-          </div>
-        }
-
-        @if (dentists().length === 0) {
-          <p
-            class="specialist-helper"
-            data-dentist-directory-empty>
-            No hay odontólogos disponibles en el directorio autorizado.
-          </p>
-        }
       </section>
 
       <section class="form-card notes-section">
@@ -358,17 +293,6 @@
             }
           } @else {
             No seleccionada
-          }
-        </strong>
-      </div>
-
-      <div class="summary-row">
-        <span>Servicio</span>
-        <strong data-selected-service>
-          @if (selectedSpecialty() && selectedConsultation()) {
-            {{ selectedSpecialtyName() }} · {{ selectedConsultation() }}
-          } @else {
-            No seleccionado
           }
         </strong>
       </div>
