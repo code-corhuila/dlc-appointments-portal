@@ -10,14 +10,6 @@ import { createApplication } from '@angular/platform-browser';
 import { AppointmentsRootComponent } from './app/appointments-root.component';
 import { CompositionNavigationService } from './app/composition-navigation.service';
 import { CompositionRouteState } from './app/composition-route-state';
-import {
-  CALENDAR_SUPPORT_DATA_SOURCE,
-  CALENDAR_SUPPORT_FIXTURE_DATA,
-} from './app/appointments/data/calendar-support-data-source';
-import { AppointmentsApiService } from './app/appointments/data/appointments-api.service';
-import { DENTIST_DIRECTORY } from './app/appointments/data/dentist-directory';
-import { PatientsLookupService } from './app/appointments/data/patients-lookup.service';
-import { SchedulingDemoService } from './app/appointments/data/scheduling-demo.service';
 
 export const portalId = 'appointments';
 export const contractVersion = 1;
@@ -50,11 +42,6 @@ export async function mount(
         { provide: SHELL_CONTEXT, useValue: context },
         CompositionNavigationService,
         CompositionRouteState,
-        SchedulingDemoService,
-        { provide: AppointmentsApiService, useExisting: SchedulingDemoService },
-        { provide: PatientsLookupService, useExisting: SchedulingDemoService },
-        { provide: DENTIST_DIRECTORY, useExisting: SchedulingDemoService },
-        { provide: CALENDAR_SUPPORT_DATA_SOURCE, useValue: CALENDAR_SUPPORT_FIXTURE_DATA },
       ],
     });
     if (disposed || context.signal?.aborted) {
