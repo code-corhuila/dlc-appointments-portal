@@ -9,6 +9,19 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ### Added
 
 - Initial `CHANGELOG.md` to record future project changes.
+- Real integration through the dlc-front `context.http` capability for every Appointments, Patients and IAM call, with the API error envelope and cancellation on unmount.
+- IAM dentist directory (`GET /api/v1/auth/dentists`) for scheduling and assignments; a dentist sees only themselves.
+- Calendar, My calendar and Clinical assignments read and write the Appointments API, at America/Bogota time.
+
+### Changed
+
+- The composed release is the package version: `/portals/appointments/2.1.0/entry.js`; the Compose service is `appointments-portal-dlc-front`.
+
+### Removed
+
+- Demo data and providers: `SchedulingDemoService`, calendar fixtures, demo appointment store, demo dentist calendar and demo clinical assignments.
+- The specialty and consultation catalogue, the waiting list, the treatment legend and the demo profile switches, which had no contract.
+- The uncatalogued public confirmation call to `/api/v1/appointment-confirmations`.
 
 ## [2.0.0] - 2026-10-13
 

@@ -7,13 +7,14 @@ services:
       - "80"
     restart: unless-stopped
 
-  appointments-portal-demo:
+  # Composed release served to dlc-front (APPOINTMENTS_UPSTREAM=http://appointments-portal-dlc-front).
+  appointments-portal-dlc-front:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
       args:
         BUILD_SCRIPT: build:entry
-    container_name: appointments-portal-demo
+    container_name: appointments-portal-dlc-front
     ports:
       - "4177:80"
     networks:

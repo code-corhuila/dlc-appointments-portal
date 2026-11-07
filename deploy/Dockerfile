@@ -12,8 +12,9 @@ ARG BUILD_SCRIPT=build
 
 RUN npm run ${BUILD_SCRIPT} \
     && if [ "${BUILD_SCRIPT}" = "build:entry" ]; then \
-      test -f dist/site/portals/appointments/0.1.0-demo/entry.js \
-      && test -f dist/site/portals/appointments/0.1.0-demo/entry.css; \
+      release="$(node -p "require('./package.json').version")" \
+      && test -f "dist/site/portals/appointments/${release}/entry.js" \
+      && test -f "dist/site/portals/appointments/${release}/entry.css"; \
     fi \
     && mkdir -p /app/site \
     && if [ -d dist/dlc-appointments-portal/browser ]; then cp -R dist/dlc-appointments-portal/browser/. /app/site/; fi \
