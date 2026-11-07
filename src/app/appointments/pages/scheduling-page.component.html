@@ -244,6 +244,26 @@
           }
         </select>
 
+        <div class="specialist-options" aria-label="Odontólogos">
+          @for (dentist of dentists(); track dentist.id) {
+            <button
+              type="button"
+              class="specialist-option"
+              data-dentist-option
+              [attr.aria-pressed]="selectedDentistId() === dentist.id"
+              (click)="selectDentist(dentist.id)">
+              <span class="specialist-info">
+                <strong>{{ dentist.name }}</strong>
+              </span>
+            </button>
+          }
+        </div>
+
+        @if (dentists().length === 0) {
+          <p class="specialist-helper" data-dentist-directory-empty>
+            No hay odontólogos disponibles en el directorio autorizado.
+          </p>
+        }
       </section>
 
       <section class="form-card notes-section">
