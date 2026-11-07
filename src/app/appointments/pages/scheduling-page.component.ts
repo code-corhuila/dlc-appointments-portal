@@ -23,7 +23,6 @@ import {
   DentistDirectoryItem,
 } from '../data/dentist-directory';
 import { PatientsLookupService } from '../data/patients-lookup.service';
-import { SchedulingDemoService } from '../data/scheduling-demo.service';
 import {
   AvailabilitySlot,
   DEFAULT_SLOT_DURATION_MINUTES,
@@ -78,7 +77,6 @@ export class SchedulingPageComponent {
   private readonly patients =
     inject(PatientsLookupService);
 
-  private readonly demo = inject(SchedulingDemoService);
   private readonly router = inject(Router, { optional: true });
   private readonly compositionNavigation = inject(
     CompositionNavigationService,
@@ -134,24 +132,6 @@ export class SchedulingPageComponent {
   readonly selectedPatient =
     signal<PatientView | null>(null);
   readonly patientSearchText = signal('');
-
-  readonly selectedSpecialty = signal<string | null>(null);
-
-  readonly selectedConsultation = signal<string | null>(null);
-
-  protected readonly specialties = this.demo.specialties;
-
-  protected readonly consultations = computed(() =>
-    this.specialties.find((specialty) =>
-      specialty.id === this.selectedSpecialty(),
-    )?.consultations ?? [],
-  );
-
-  protected readonly selectedSpecialtyName = computed(() =>
-    this.specialties.find((specialty) =>
-      specialty.id === this.selectedSpecialty(),
-    )?.name ?? null,
-  );
 
   readonly isPatientSearchLoading =
     signal(false);
@@ -344,26 +324,6 @@ export class SchedulingPageComponent {
     this.refreshAvailabilitySlots();
   }
 
-  protected selectSpecialty(specialty: string): void {
-    this.selectedSpecialty.set(specialty || null);
-    this.selectedConsultation.set(null);
-    this.selectedDentistId.set(null);
-    this.dentists.set([]);
-
-    if (specialty) {
-      this.demo.listDentistsForSpecialty(specialty).subscribe(
-        (dentists) => this.dentists.set(dentists),
-      );
-    }
-
-    this.clearAppointmentFeedback();
-  }
-
-  protected selectConsultation(consultation: string): void {
-    this.selectedConsultation.set(consultation || null);
-    this.clearAppointmentFeedback();
-  }
-
   protected selectDate(
     date: string,
   ): void {
@@ -406,15 +366,13 @@ export class SchedulingPageComponent {
 
     if (
       !patient ||
-      !this.selectedSpecialty() ||
-      !this.selectedConsultation() ||
       !dentistId ||
       !slot
     ) {
       this.appointmentSuccess.set(null);
 
       this.appointmentError.set(
-        'Seleccione un paciente, un odontólogo y un horario antes de continuar. Además seleccione especialidad y consulta.',
+        'Seleccione un paciente, un odontólogo y un horario antes de continuar.',
       );
 
       return;
@@ -455,9 +413,7 @@ export class SchedulingPageComponent {
         next: (appointment) => {
           this.appointmentError.set(null);
 
-          this.appointmentSuccess.set(
-          'Cita agendada correctamente. Cita demostrativa creada correctamente; los datos son temporales y no se guardaron en una base de datos real.',
-          );
+          this.appointmentSuccess.set(APPOINTMENT_SUCCESS_MESSAGE);
           this.resetForm();
           this.navigateToCalendar(appointment.id, appointment.startAt);
         },
@@ -523,8 +479,8 @@ export class SchedulingPageComponent {
 
   private resetForm(): void {
     this.selectedPatient.set(null); this.patientSearchText.set(''); this.patientResults.set([]);
-    this.selectedSpecialty.set(null); this.selectedConsultation.set(null); this.selectedDate.set(null);
-    this.selectedDentistId.set(null); this.selectedSlot.set(null); this.availableSlots.set([]); this.dentists.set([]);
+    this.selectedDate.set(null);
+    this.selectedDentistId.set(null); this.selectedSlot.set(null); this.availableSlots.set([]);
     this.appointmentReason = '';
   }
 
