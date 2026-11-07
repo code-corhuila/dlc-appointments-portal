@@ -1,4 +1,5 @@
 
+import { DENTIST_DIRECTORY, DentistDirectoryItem } from '../data/dentist-directory';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -72,6 +73,9 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
           (change)="loadAvailability($any($event.target).value)"
         >
           <option value="">Seleccione un odontólogo</option>
+          @for (dentist of dentists(); track dentist.id) {
+            <option [value]="dentist.id">{{ dentist.name }}</option>
+          }
         </select>
       </section>
 
@@ -454,6 +458,16 @@ export class AvailabilityPageComponent {
   private readonly api = inject(AppointmentsApiService);
   private readonly destroyRef = inject(DestroyRef);
 
+  /** Dentists from the IAM directory (dlc-docs#164). */
+  protected readonly dentists = signal<readonly DentistDirectoryItem[]>([]);
+
+  constructor() {
+    inject(DENTIST_DIRECTORY).listDentists().pipe(takeUntilDestroyed()).subscribe({
+      next: (dentists) => this.dentists.set(dentists),
+      error: () => this.dentists.set([]),
+    });
+  }
+
   private availabilityRequest?: Subscription;
   private loadedAvailability: DentistAvailability | null = null;
 
@@ -550,9 +564,18 @@ export class AvailabilityPageComponent {
           );
         },
         error: (error: unknown) => {
+          const apiError = toApiError(error);
+          if (apiError.error === 'NOT_FOUND') {
+            // No stored schedule yet: the first replacement uses expectedVersion 1 (appointments-service.yaml).
+            const empty: DentistAvailability = { id: '', dentistId, intervals: [], blockedIntervals: [], version: 1 };
+            this.loadedAvailability = empty;
+            this.applyAvailability(empty);
+            this.availabilityEmpty.set(true);
+            return;
+          }
           this.loadedAvailability = null;
           this.availabilityEmpty.set(false);
-          this.availabilityError.set(toApiError(error));
+          this.availabilityError.set(apiError);
         },
       });
   }
