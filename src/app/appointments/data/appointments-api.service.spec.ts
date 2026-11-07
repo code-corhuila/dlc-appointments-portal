@@ -1,423 +1,140 @@
-import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom, Observable } from 'rxjs';
 
+import { SHELL_CONTEXT, ShellHttpRequest } from '../../shell-contract';
+import { fakeShellContext, shellFailure, shellOk } from '../../../testing/fake-shell';
 import { AppointmentsApiService } from './appointments-api.service';
 
 describe('AppointmentsApiService', () => {
   let service: AppointmentsApiService;
-  let httpTesting: HttpTestingController;
+  let calls: ShellHttpRequest[];
 
-  beforeEach(() => {
+  function setup(respond?: Parameters<typeof fakeShellContext>[0]) {
+    const shell = fakeShellContext(respond);
+    calls = shell.calls;
     TestBed.configureTestingModule({
-      providers: [
-        AppointmentsApiService,
-        provideHttpClient(),
-        provideHttpClientTesting(),
-      ],
+      providers: [{ provide: SHELL_CONTEXT, useValue: shell.context }],
     });
-
     service = TestBed.inject(AppointmentsApiService);
-    httpTesting = TestBed.inject(HttpTestingController);
-  });
+  }
 
-  afterEach(() => {
-    httpTesting.verify();
-  });
+  beforeEach(() => setup());
 
-  it('lists appointments using relative API routes and query parameters', () => {
-    service
-      .listAppointments({
+  const send = (call: Observable<unknown>) => firstValueFrom(call);
+
+  it('lists appointments through the shell with contract query parameters', async () => {
+    await send(
+      service.listAppointments({
         page: 2,
         limit: 20,
         patientId: 'patient-1',
         dentistId: 'dentist-1',
         from: '2026-10-06T08:00:00-05:00',
         to: '2026-10-07T08:00:00-05:00',
-      })
-      .subscribe();
-
-    const request = httpTesting.expectOne((candidate) => {
-      return candidate.url === '/api/v1/appointments';
-    });
-
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('page')).toBe('2');
-    expect(request.request.params.get('limit')).toBe('20');
-    expect(request.request.params.get('patientId')).toBe('patient-1');
-    expect(request.request.params.get('dentistId')).toBe('dentist-1');
-    expect(request.request.params.get('from')).toBe(
-      '2026-10-06T08:00:00-05:00',
-    );
-    expect(request.request.params.get('to')).toBe(
-      '2026-10-07T08:00:00-05:00',
+      }),
     );
 
-    request.flush({
-      data: [],
-      meta: {
-        page: 2,
-        limit: 20,
-        total: 0,
-        totalPages: 0,
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v1/appointments',
+      query: {
+        page: ['2'],
+        limit: ['20'],
+        patientId: ['patient-1'],
+        dentistId: ['dentist-1'],
+        from: ['2026-10-06T08:00:00-05:00'],
+        to: ['2026-10-07T08:00:00-05:00'],
       },
     });
+    expect(calls[0].body).toBeUndefined();
   });
 
-  it('reads an appointment by id', () => {
-    service.getAppointment('appointment-1').subscribe();
+  it('emits the page returned by the API', async () => {
+    const page = { data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+    TestBed.resetTestingModule();
+    setup(() => shellOk(page));
 
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1',
-    );
-
-    expect(request.request.method).toBe('GET');
-
-    request.flush({});
+    await expect(send(service.listAppointments())).resolves.toEqual(page);
   });
 
-  it('creates an appointment with an idempotency key', () => {
-    const body = {
-      patientId: 'patient-1',
-      dentistId: 'dentist-1',
-      startAt: '2026-10-06T08:00:00-05:00',
-      endAt: '2026-10-06T09:00:00-05:00',
-      reason: 'Control',
-    };
+  it('reads one appointment and encodes its id', async () => {
+    await send(service.getAppointment('a/1'));
 
-    service
-      .createAppointment(
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/appointments/a%2F1' });
+  });
+
+  const KEY = '550e8400-e29b-41d4-a716-446655440000';
+  const commands: ReadonlyArray<[string, (s: AppointmentsApiService) => Observable<unknown>, string, unknown]> = [
+    [
+      'schedules',
+      (s) => s.createAppointment(
+        { patientId: 'p-1', dentistId: 'd-1', startAt: '2026-10-06T08:00:00-05:00', endAt: '2026-10-06T09:00:00-05:00', reason: 'Control' },
+        KEY,
+      ),
+      '/api/v1/appointments',
+      { patientId: 'p-1', dentistId: 'd-1', startAt: '2026-10-06T08:00:00-05:00', endAt: '2026-10-06T09:00:00-05:00', reason: 'Control' },
+    ],
+    ['confirms', (s) => s.confirmAppointment('a-1', { expectedVersion: 1, channel: 'PHONE' }, KEY), '/api/v1/appointments/a-1/confirmations', { expectedVersion: 1, channel: 'PHONE' }],
+    ['cancels', (s) => s.cancelAppointment('a-1', { expectedVersion: 1, reason: 'Patient request' }, KEY), '/api/v1/appointments/a-1/cancellations', { expectedVersion: 1, reason: 'Patient request' }],
+    [
+      'reschedules',
+      (s) => s.rescheduleAppointment('a-1', { expectedVersion: 2, startAt: '2026-10-07T08:00:00-05:00', endAt: '2026-10-07T09:00:00-05:00', reason: 'Conflict' }, KEY),
+      '/api/v1/appointments/a-1/reschedulings',
+      { expectedVersion: 2, startAt: '2026-10-07T08:00:00-05:00', endAt: '2026-10-07T09:00:00-05:00', reason: 'Conflict' },
+    ],
+    ['starts attention for', (s) => s.startAttention('a-1', { expectedVersion: 3 }, KEY), '/api/v1/appointments/a-1/attention-starts', { expectedVersion: 3 }],
+    ['marks a no-show for', (s) => s.markNoShow('a-1', { expectedVersion: 3, reason: 'No contact' }, KEY), '/api/v1/appointments/a-1/no-shows', { expectedVersion: 3, reason: 'No contact' }],
+    ['completes', (s) => s.completeAppointment('a-1', { expectedVersion: 4 }, KEY), '/api/v1/appointments/a-1/completions', { expectedVersion: 4 }],
+    ['starts', (s) => s.createClinicalAssignment({ patientId: 'p-1', dentistId: 'd-1', reason: 'Ortodoncia' }, KEY), '/api/v1/clinical-assignments', { patientId: 'p-1', dentistId: 'd-1', reason: 'Ortodoncia' }],
+    ['ends', (s) => s.endClinicalAssignment('c-1', { expectedVersion: 1, reason: 'Done' }, KEY), '/api/v1/clinical-assignments/c-1/endings', { expectedVersion: 1, reason: 'Done' }],
+  ];
+
+  for (const [verb, call, path, body] of commands) {
+    it(`${verb} ${path} with its idempotency key`, async () => {
+      await send(call(service));
+
+      expect(calls[0]).toMatchObject({
+        method: 'POST',
+        path,
         body,
-        '550e8400-e29b-41d4-a716-446655440000',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne('/api/v1/appointments');
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440000',
-    );
-
-    request.flush({});
-  });
-
-  it('confirms an appointment with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-      channel: 'PHONE' as const,
-    };
-
-    service
-      .confirmAppointment(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440001',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/confirmations',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440001',
-    );
-
-    request.flush({});
-  });
-
-  it('cancels an appointment with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-      reason: 'Patient request',
-    };
-
-    service
-      .cancelAppointment(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440002',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/cancellations',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440002',
-    );
-
-    request.flush({});
-  });
-
-  it('reschedules an appointment with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-      startAt: '2026-10-07T08:00:00-05:00',
-      endAt: '2026-10-07T09:00:00-05:00',
-      reason: 'Patient request',
-    };
-
-    service
-      .rescheduleAppointment(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440003',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/reschedulings',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440003',
-    );
-
-    request.flush({});
-  });
-
-  it('starts appointment attention with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-    };
-
-    service
-      .startAttention(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440004',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/attention-starts',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440004',
-    );
-
-    request.flush({});
-  });
-
-  it('marks an appointment as no-show with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-      reason: 'Patient did not attend',
-    };
-
-    service
-      .markNoShow(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440005',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/no-shows',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440005',
-    );
-
-    request.flush({});
-  });
-
-  it('completes an appointment with an idempotency key', () => {
-    const body = {
-      expectedVersion: 1,
-    };
-
-    service
-      .completeAppointment(
-        'appointment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440006',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointments/appointment-1/completions',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440006',
-    );
-
-    request.flush({});
-  });
-
-  it('posts the public confirmation token without an idempotency header', () => {
-    const body = {
-      token: 'signed-token',
-    };
-
-    service.confirmPublicAppointment(body).subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/appointment-confirmations',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.has('Idempotency-Key')).toBe(false);
-
-    request.flush({
-      confirmed: true,
+        headers: { 'Idempotency-Key': KEY },
+      });
     });
+  }
+
+  it('reads and replaces dentist availability', async () => {
+    const body = { expectedVersion: 1, weeklyShifts: [], exceptions: [] };
+
+    await send(service.getDentistAvailability('d-1'));
+    await send(service.updateDentistAvailability('d-1', body as never));
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/dentists/d-1/availability' });
+    expect(calls[1]).toMatchObject({ method: 'PUT', path: '/api/v1/dentists/d-1/availability', body });
   });
 
-  it('reads dentist availability', () => {
-    service.getDentistAvailability('dentist-1').subscribe();
+  it('lists and reads clinical assignments', async () => {
+    await send(service.listClinicalAssignments({ page: 1, limit: 20, patientId: 'p-1', dentistId: 'd-1' }));
+    await send(service.getClinicalAssignment('c-1'));
 
-    const request = httpTesting.expectOne(
-      '/api/v1/dentists/dentist-1/availability',
-    );
-
-    expect(request.request.method).toBe('GET');
-
-    request.flush({});
-  });
-
-  it('updates dentist availability', () => {
-    const body = {
-      intervals: [
-        {
-          startAt: '2026-10-06T08:00:00-05:00',
-          endAt: '2026-10-06T12:00:00-05:00',
-        },
-      ],
-      blockedIntervals: [],
-      expectedVersion: 1,
-    };
-
-    service.updateDentistAvailability('dentist-1', body).subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/dentists/dentist-1/availability',
-    );
-
-    expect(request.request.method).toBe('PUT');
-    expect(request.request.body).toEqual(body);
-
-    request.flush({});
-  });
-
-  it('lists clinical assignments with filters', () => {
-    service
-      .listClinicalAssignments({
-        page: 1,
-        limit: 20,
-        patientId: 'patient-1',
-        dentistId: 'dentist-1',
-      })
-      .subscribe();
-
-    const request = httpTesting.expectOne((candidate) => {
-      return candidate.url === '/api/v1/clinical-assignments';
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v1/clinical-assignments',
+      query: { page: ['1'], limit: ['20'], patientId: ['p-1'], dentistId: ['d-1'] },
     });
+    expect(calls[1]).toMatchObject({ method: 'GET', path: '/api/v1/clinical-assignments/c-1' });
+  });
 
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('page')).toBe('1');
-    expect(request.request.params.get('limit')).toBe('20');
-    expect(request.request.params.get('patientId')).toBe('patient-1');
-    expect(request.request.params.get('dentistId')).toBe('dentist-1');
+  it('only calls operations published in the Appointments contract', () => {
+    expect('confirmPublicAppointment' in service).toBe(false);
+  });
 
-    request.flush({
-      data: [],
-      meta: {
-        page: 1,
-        limit: 20,
-        total: 0,
-        totalPages: 0,
-      },
+  it('propagates the owner error envelope', async () => {
+    TestBed.resetTestingModule();
+    setup(() => shellFailure(409, 'APPOINTMENT_CONFLICT', { traceId: 't-2' }));
+
+    await expect(send(service.getAppointment('a-1'))).rejects.toMatchObject({
+      error: 'APPOINTMENT_CONFLICT',
+      traceId: 't-2',
     });
-  });
-
-  it('reads a clinical assignment', () => {
-    service.getClinicalAssignment('assignment-1').subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/clinical-assignments/assignment-1',
-    );
-
-    expect(request.request.method).toBe('GET');
-
-    request.flush({});
-  });
-
-  it('creates a clinical assignment with an idempotency key', () => {
-    const body = {
-      patientId: 'patient-1',
-      dentistId: 'dentist-1',
-      reason: 'Ongoing care',
-    };
-
-    service
-      .createClinicalAssignment(
-        body,
-        '550e8400-e29b-41d4-a716-446655440007',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/clinical-assignments',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440007',
-    );
-
-    request.flush({});
-  });
-
-  it('ends a clinical assignment with an idempotency key', () => {
-    const body = {
-      reason: 'Care relationship ended',
-      expectedVersion: 1,
-    };
-
-    service
-      .endClinicalAssignment(
-        'assignment-1',
-        body,
-        '550e8400-e29b-41d4-a716-446655440008',
-      )
-      .subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/clinical-assignments/assignment-1/endings',
-    );
-
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual(body);
-    expect(request.request.headers.get('Idempotency-Key')).toBe(
-      '550e8400-e29b-41d4-a716-446655440008',
-    );
-
-    request.flush({});
   });
 });

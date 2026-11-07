@@ -6,7 +6,7 @@ import { PortalRoute, SHELL_CONTEXT } from './shell-contract';
 export class CompositionNavigationService {
   private readonly context = inject(SHELL_CONTEXT);
 
-  request(route: PortalRoute): Promise<void> | void {
+  request(route: PortalRoute): Promise<unknown> | void {
     return this.context.navigation.request({
       path: this.toShellPath(route),
     });
