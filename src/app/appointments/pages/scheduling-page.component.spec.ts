@@ -9,6 +9,7 @@ import {
 } from 'rxjs';
 
 import { AppointmentsApiService } from '../data/appointments-api.service';
+import { DENTIST_DIRECTORY } from '../data/dentist-directory';
 import { PatientsLookupService } from '../data/patients-lookup.service';
 import {
   Appointment,
@@ -113,6 +114,16 @@ describe('SchedulingPageComponent', () => {
             },
           },
         },
+        {
+          provide: DENTIST_DIRECTORY,
+          useValue: {
+            listDentists: () =>
+              of([
+                { id: 'dentist-123', name: 'Dra. Valentina Ruiz' },
+                { id: 'dentist-456', name: 'Dr. Andrés Mora' },
+              ]),
+          },
+        },
       ],
     }).compileComponents();
 
@@ -138,32 +149,23 @@ describe('SchedulingPageComponent', () => {
 
     expect(
       element.querySelector('#specialty'),
-    ).not.toBeNull();
+    ).toBeNull();
 
     expect(
       element.querySelector('#consultation-type'),
-    ).not.toBeNull();
+    ).toBeNull();
 
     expect(
       element.querySelector('#dentist'),
     ).not.toBeNull();
   });
 
-  it('updates the service summary from the selected demonstration catalog', () => {
-    const element = fixture.nativeElement as HTMLElement;
-    const specialty = element.querySelector<HTMLSelectElement>('#specialty');
+  it('shows the selected dentist in the appointment summary', () => {
+    selectDentist('dentist-456');
 
-    specialty!.value = 'general';
-    specialty!.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    const consultation = element.querySelector<HTMLSelectElement>('#consultation-type');
-    consultation!.value = 'Consulta de valoración';
-    consultation!.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    expect(element.querySelector('[data-selected-service]')?.textContent)
-      .toContain('Odontología general · Consulta de valoración');
+    expect(
+      (fixture.nativeElement as HTMLElement).textContent,
+    ).toContain('Dr. Andrés Mora');
   });
 
   it('searches active patients and renders matching results', () => {
@@ -210,15 +212,16 @@ describe('SchedulingPageComponent', () => {
     expect(element.querySelector('[role="listbox"]')).not.toBeNull();
   });
 
-  it('renders selectable demonstration dentists after selecting a specialty', () => {
+  it('lists the dentists of the IAM directory without demonstration data', () => {
     const element = fixture.nativeElement as HTMLElement;
-    const specialty = element.querySelector<HTMLSelectElement>('#specialty');
+    const options = Array.from(
+      element.querySelectorAll<HTMLOptionElement>('#dentist option'),
+    ).map((option) => option.textContent?.trim());
 
-    specialty!.value = 'general';
-    specialty!.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    expect(element.querySelectorAll('[data-demo-dentist]').length).toBeGreaterThan(0);
+    expect(options).toContain('Dra. Valentina Ruiz');
+    expect(options).toContain('Dr. Andrés Mora');
+    expect(element.querySelector('[data-demo-dentist]')).toBeNull();
+    expect(element.textContent).not.toMatch(/Demostra|demostrativ/i);
   });
 
   it('shows loading feedback while patient search is pending', () => {
@@ -1656,20 +1659,6 @@ describe('SchedulingPageComponent', () => {
     const element =
       fixture.nativeElement as HTMLElement;
 
-    const specialty =
-      element.querySelector<HTMLSelectElement>('#specialty');
-
-    specialty!.value = 'general';
-    specialty!.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    const consultation =
-      element.querySelector<HTMLSelectElement>('#consultation-type');
-
-    consultation!.value = 'Consulta de valoración';
-    consultation!.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
     const select =
       element.querySelector<HTMLSelectElement>(
         '#dentist',
@@ -1677,13 +1666,12 @@ describe('SchedulingPageComponent', () => {
 
     expect(select).not.toBeNull();
 
-    const option =
-      document.createElement('option');
-
-    option.value = dentistId;
-    option.textContent = 'Dentist test';
-
-    select?.append(option);
+    if (select && !select.querySelector(`option[value="${dentistId}"]`)) {
+      const option = document.createElement('option');
+      option.value = dentistId;
+      option.textContent = 'Dentist test';
+      select.append(option);
+    }
 
     if (select) {
       select.value = dentistId;
