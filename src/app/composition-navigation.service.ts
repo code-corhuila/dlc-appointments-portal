@@ -12,6 +12,11 @@ export class CompositionNavigationService {
     });
   }
 
+  /** C04 navigation to another portal's shell-absolute path (e.g. Patients). */
+  requestShellPath(path: string): Promise<unknown> | void {
+    return this.context.navigation.request({ path });
+  }
+
   private toShellPath(route: PortalRoute): string {
     const query = new URLSearchParams();
     for (const [name, values] of Object.entries(route.query ?? {})) {
