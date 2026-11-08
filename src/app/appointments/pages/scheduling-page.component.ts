@@ -458,6 +458,11 @@ export class SchedulingPageComponent {
       });
   }
 
+  /** Patients owns registration; the shell opens its form (C04). */
+  openNewPatient(): void {
+    void this.compositionNavigation?.requestShellPath('/app/patients/new');
+  }
+
   private navigateToCalendar(appointmentId: string, startAt: string): void {
     if (this.compositionNavigation) {
       void this.compositionNavigation.request({ localPath: '/calendar' });

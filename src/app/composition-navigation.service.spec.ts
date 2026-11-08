@@ -42,4 +42,18 @@ describe('CompositionNavigationService', () => {
       path: '/app/appointments/calendar?status=PROGRAMADA&status=CONFIRMADA',
     });
   });
+
+  it('requests another portal through its shell absolute path', () => {
+    const request = vi.fn();
+    TestBed.configureTestingModule({
+      providers: [
+        CompositionNavigationService,
+        { provide: SHELL_CONTEXT, useValue: { navigation: { request } } },
+      ],
+    });
+
+    TestBed.inject(CompositionNavigationService).requestShellPath('/app/patients/new');
+
+    expect(request).toHaveBeenCalledWith({ path: '/app/patients/new' });
+  });
 });

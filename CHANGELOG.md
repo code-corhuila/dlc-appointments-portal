@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 - The composed release is the package version: `/portals/appointments/2.1.0/entry.js`; the Compose service is `appointments-portal-dlc-front`.
 
+### Fixed
+
+- "Nuevo Paciente" in scheduling asks the shell (C04) to open the Patients registration form at `/app/patients/new`; the button had no handler.
+
 ### Removed
 
 - Demo data and providers: `SchedulingDemoService`, calendar fixtures, demo appointment store, demo dentist calendar and demo clinical assignments.
