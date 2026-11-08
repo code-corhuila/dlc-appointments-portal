@@ -16,6 +16,9 @@ import { CLINIC_TIME_ZONE_CONFIG } from '../data/clinic-time-zone-config';
 import {
   addAvailabilityShift,
   AvailabilityDayDefaults,
+  AvailabilityShift,
+  generateAvailabilityRange,
+  MAX_GENERATION_DAYS,
   AvailabilityDayKey,
   AvailabilityTimeField,
   DEFAULT_SLOT_DURATION_MINUTES,
@@ -220,7 +223,7 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
                     !isDayEnabled(day.key) ||
                     availabilitySaving() ||
                     hasMultipleDatesForDay(day.key) ||
-                    (hasLoadedAvailability() && !hasSecondShift(day))
+                    (hasLoadedAvailability() && hasStoredShifts(day) && !hasSecondShift(day))
                   "
                   (change)="
                     setSecondShiftEnabled(
@@ -322,14 +325,35 @@ const AVAILABILITY_SAVE_SUCCESS_MESSAGE =
           </header>
 
           <label for="start-date">Fecha de Inicio *</label>
-          <input id="start-date" type="date" data-start-date />
+          <input
+            id="start-date"
+            type="date"
+            data-start-date
+            [value]="generateStartDate()"
+            (change)="generateStartDate.set($any($event.target).value)"
+          />
 
           <label for="end-date">Fecha de Fin *</label>
-          <input id="end-date" type="date" data-end-date />
+          <input
+            id="end-date"
+            type="date"
+            data-end-date
+            [value]="generateEndDate()"
+            (change)="generateEndDate.set($any($event.target).value)"
+          />
 
-          <button type="button" data-generate-slots>
+          <button
+            type="button"
+            data-generate-slots
+            [disabled]="availabilitySaving() || !hasLoadedAvailability()"
+            (click)="generateSlots()"
+          >
             Generar Slots de Disponibilidad
           </button>
+
+          @if (generateError()) {
+            <p data-generate-error role="alert">{{ generateError() }}</p>
+          }
 
           <section data-shift-creation-form>
             <h3>Agregar turno de disponibilidad</h3>
@@ -488,6 +512,13 @@ export class AvailabilityPageComponent {
   protected readonly availabilitySaveSuccess = signal(false);
   protected readonly availabilitySaveError =
     signal<string | null>(null);
+
+  protected readonly generateStartDate = signal('');
+  protected readonly generateEndDate = signal('');
+  protected readonly generateError = signal<string | null>(null);
+  /** Weekly times typed for days without stored intervals; used by "Generar Slots". */
+  private readonly weeklyOverrides =
+    signal<Record<string, Record<number, Partial<AvailabilityShift>>>>({});
 
   protected readonly newShiftDate = signal('');
   protected readonly newShiftStart = signal('');
@@ -692,6 +723,21 @@ export class AvailabilityPageComponent {
       return;
     }
 
+    if (!this.loadedSchedule()[dayKey as AvailabilityDayKey]?.[shiftIndex]) {
+      this.weeklyOverrides.update((current) => ({
+        ...current,
+        [dayKey]: {
+          ...current[dayKey],
+          [shiftIndex]: {
+            ...current[dayKey]?.[shiftIndex],
+            [field === 'startAt' ? 'start' : 'end']: time,
+          },
+        },
+      }));
+      this.clearSaveFeedback();
+      return;
+    }
+
     const intervals =
       updateAvailabilityIntervalTime(
         this.loadedAvailability.intervals,
@@ -891,13 +937,12 @@ export class AvailabilityPageComponent {
         day.key as AvailabilityDayKey
       ]?.[index];
 
-    if (this.hasLoadedAvailability()) {
-      return shift?.start ?? '';
+    if (shift) {
+      return shift.start;
     }
 
-    return index === 0
-      ? day.shiftOne.start
-      : day.shiftTwo.start;
+    return this.weeklyOverrides()[day.key]?.[index]?.start
+      ?? (index === 0 ? day.shiftOne.start : day.shiftTwo.start);
   }
 
   protected shiftEnd(
@@ -909,13 +954,12 @@ export class AvailabilityPageComponent {
         day.key as AvailabilityDayKey
       ]?.[index];
 
-    if (this.hasLoadedAvailability()) {
-      return shift?.end ?? '';
+    if (shift) {
+      return shift.end;
     }
 
-    return index === 0
-      ? day.shiftOne.end
-      : day.shiftTwo.end;
+    return this.weeklyOverrides()[day.key]?.[index]?.end
+      ?? (index === 0 ? day.shiftOne.end : day.shiftTwo.end);
   }
 
   protected hasSecondShift(
@@ -928,11 +972,90 @@ export class AvailabilityPageComponent {
     );
   }
 
+  protected hasStoredShifts(
+    day: AvailabilityDayDefaults,
+  ): boolean {
+    return (
+      (this.loadedSchedule()[
+        day.key as AvailabilityDayKey
+      ]?.length ?? 0) > 0
+    );
+  }
+
+  /** Turns the weekly schedule into dated intervals for the chosen range and saves them. */
+  protected generateSlots(): void {
+    if (!this.loadedAvailability || this.availabilitySaving()) {
+      return;
+    }
+
+    this.generateError.set(null);
+    const from = this.generateStartDate();
+    const to = this.generateEndDate();
+
+    if (!from || !to) {
+      this.generateError.set('Seleccione la fecha de inicio y de fin.');
+      return;
+    }
+
+    const week: Record<string, AvailabilityShift[]> = {};
+
+    for (const day of this.weekDays) {
+      if (!this.isDayEnabled(day.key) || this.hasMultipleDatesForDay(day.key)) {
+        continue;
+      }
+
+      const shifts = [{ start: this.shiftStart(day, 0), end: this.shiftEnd(day, 0) }];
+
+      if (this.isSecondShiftEnabled(day)) {
+        shifts.push({ start: this.shiftStart(day, 1), end: this.shiftEnd(day, 1) });
+      }
+
+      week[day.key] = shifts.filter((shift) => shift.start && shift.end);
+    }
+
+    let generated: ReturnType<typeof generateAvailabilityRange>;
+
+    try {
+      generated = generateAvailabilityRange(
+        this.loadedAvailability.intervals,
+        from,
+        to,
+        week,
+        this.clinicTimeZone,
+      );
+    } catch {
+      this.generateError.set(
+        `El rango de fechas no es válido (máximo ${MAX_GENERATION_DAYS} días) o un turno tiene horas inválidas.`,
+      );
+      return;
+    }
+
+    if (generated.added === 0) {
+      this.generateError.set(
+        'No hay turnos nuevos para generar en ese rango.',
+      );
+      return;
+    }
+
+    this.loadedAvailability = {
+      ...this.loadedAvailability,
+      intervals: generated.intervals,
+    };
+    this.loadedSchedule.set(
+      mapAvailabilityIntervalsToWeek(
+        generated.intervals,
+        this.clinicTimeZone,
+      ),
+    );
+    this.availabilityEmpty.set(false);
+    this.saveAvailability();
+  }
+
   protected isSecondShiftEnabled(
     day: AvailabilityDayDefaults,
   ): boolean {
-    if (!this.hasLoadedAvailability()) {
-      return day.shiftTwo.enabled;
+    if (!this.hasLoadedAvailability() || !this.hasStoredShifts(day)) {
+      return day.shiftTwo.enabled && !this.disabledSecondShifts()[day.key];
     }
 
     return (
@@ -948,7 +1071,7 @@ export class AvailabilityPageComponent {
     if (
       !this.hasLoadedAvailability() ||
       !this.isDayEnabled(day.key) ||
-      !this.hasSecondShift(day) ||
+      (this.hasStoredShifts(day) && !this.hasSecondShift(day)) ||
       this.availabilitySaving() ||
       this.hasMultipleDatesForDay(day.key)
     ) {
@@ -1070,11 +1193,14 @@ export class AvailabilityPageComponent {
       Object.fromEntries(
         DEFAULT_WEEKLY_AVAILABILITY.map((day) => [
           day.key,
-          (
-            schedule[
-              day.key as AvailabilityDayKey
-            ]?.length ?? 0
-          ) > 0,
+          // A dentist without stored intervals starts from the default week for "Generar Slots".
+          availability.intervals.length === 0
+            ? day.enabled
+            : (
+                schedule[
+                  day.key as AvailabilityDayKey
+                ]?.length ?? 0
+              ) > 0,
         ]),
       ),
     );
