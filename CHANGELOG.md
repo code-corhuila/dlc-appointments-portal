@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 - The composed release is the package version: `/portals/appointments/2.1.0/entry.js`; the Compose service is `appointments-portal-dlc-front`.
 
+### Fixed
+
+- "Generar Slots de Disponibilidad" creates the weekly shifts as dated intervals for every date of the chosen range (America/Bogota, at most 92 days, overlaps skipped) and saves them; before it had no handler. A dentist without stored availability starts from the default week (Monday to Friday, 08:00-12:00 and 14:00-18:00), whose hours can be edited before generating.
+- "Nuevo Paciente" in scheduling asks the shell (C04) to open the Patients registration form at `/app/patients/new`; the button had no handler.
+
 ### Removed
 
 - Demo data and providers: `SchedulingDemoService`, calendar fixtures, demo appointment store, demo dentist calendar and demo clinical assignments.

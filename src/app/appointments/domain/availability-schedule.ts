@@ -424,3 +424,52 @@ function isAvailabilityDayKey(
     SUPPORTED_WEEK_DAYS as readonly string[]
   ).includes(value);
 }
+
+/** Longest range "Generar Slots" accepts, so one save stays a reasonable replacement. */
+export const MAX_GENERATION_DAYS = 92;
+
+const WEEKDAY_BY_UTC_DAY: Readonly<Record<number, AvailabilityDayKey>> = {
+  1: 'monday',
+  2: 'tuesday',
+  3: 'wednesday',
+  4: 'thursday',
+  5: 'friday',
+};
+
+/**
+ * Turns the weekly schedule into dated intervals for every clinic date from `fromDate` to `toDate` (inclusive,
+ * YYYY-MM-DD). Existing intervals are kept; a shift that would overlap one of them is skipped.
+ */
+export function generateAvailabilityRange(
+  existing: readonly AvailabilityInterval[],
+  fromDate: string,
+  toDate: string,
+  week: WeeklyAvailabilitySchedule,
+  timeZone: string = CLINIC_TIME_ZONE,
+): { readonly intervals: readonly AvailabilityInterval[]; readonly added: number } {
+  const date = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const from = date.exec(fromDate);
+  const to = date.exec(toDate);
+  const start = from ? Date.UTC(+from[1], +from[2] - 1, +from[3]) : NaN;
+  const end = to ? Date.UTC(+to[1], +to[2] - 1, +to[3]) : NaN;
+  const days = (end - start) / 86_400_000;
+  if (!Number.isFinite(days) || days < 0 || days >= MAX_GENERATION_DAYS) {
+    throw new Error('Invalid generation range');
+  }
+  let intervals = existing;
+  let added = 0;
+  for (let day = start; day <= end; day += 86_400_000) {
+    const current = new Date(day);
+    const dayKey = WEEKDAY_BY_UTC_DAY[current.getUTCDay()];
+    const clinicDate = current.toISOString().slice(0, 10);
+    for (const shift of (dayKey && week[dayKey]) || []) {
+      try {
+        intervals = addAvailabilityShift(intervals, clinicDate, shift.start, shift.end, timeZone);
+        added++;
+      } catch (error: unknown) {
+        if (!(error instanceof Error) || !error.message.includes('overlap')) throw error;
+      }
+    }
+  }
+  return { intervals, added };
+}
