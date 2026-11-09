@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Added
 
+- Calendar side panel with the appointment-type legend (HU-APT-006) and the waiting list (HU-APT-005) from the Appointments API; staff can withdraw a waiting entry. Appointment labels take their type colour.
+
+### Added
+
 - Initial `CHANGELOG.md` to record future project changes.
 - Real integration through the dlc-front `context.http` capability for every Appointments, Patients and IAM call, with the API error envelope and cancellation on unmount.
 - IAM dentist directory (`GET /api/v1/auth/dentists`) for scheduling and assignments; a dentist sees only themselves.
