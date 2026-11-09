@@ -1,4 +1,5 @@
 
+import type { AppointmentType } from '../model/waiting-list';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -103,6 +104,12 @@ export class SchedulingPageComponent {
     | null = null;
 
   protected appointmentReason = '';
+  /** HU-APT-006: optional appointment type from the Appointments catalog. */
+  protected appointmentTypeCode = '';
+  protected readonly appointmentTypes = signal<readonly AppointmentType[]>([]);
+  /** HU-APT-005: feedback after adding the selected patient to the waiting list. */
+  protected readonly waitingListFeedback = signal<string | null>(null);
+  protected readonly isAddingToWaitingList = signal(false);
 
   protected readonly clinicTimeZone =
     inject(CLINIC_TIME_ZONE_CONFIG);
@@ -170,6 +177,10 @@ export class SchedulingPageComponent {
     signal<string | null>(null);
 
   constructor() {
+    this.api.listAppointmentTypes?.().subscribe({
+      next: (catalog) => this.appointmentTypes.set(catalog.data),
+      error: () => this.appointmentTypes.set([]),
+    });
     this.dentistDirectory
       .listDentists()
       .pipe(
@@ -348,6 +359,38 @@ export class SchedulingPageComponent {
     reason: string,
   ): void {
     this.appointmentReason = reason;
+    this.waitingListFeedback.set(null);
+  }
+
+  protected setAppointmentType(code: string): void {
+    this.appointmentTypeCode = code;
+  }
+
+  protected canAddToWaitingList(): boolean {
+    return !!this.selectedPatient() && this.appointmentReason.trim().length > 0 && !this.isAddingToWaitingList();
+  }
+
+  /** HU-APT-005: no slot fits; keep the patient, optional dentist and reason on the waiting list. */
+  protected addToWaitingList(): void {
+    const patient = this.selectedPatient();
+    if (!patient || !this.canAddToWaitingList()) return;
+    const dentistId = this.selectedDentistId();
+    this.isAddingToWaitingList.set(true);
+    this.api
+      .createWaitingListEntry(
+        { patientId: patient.id, ...(dentistId ? { dentistId } : {}), reason: this.appointmentReason.trim() },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: () => {
+          this.isAddingToWaitingList.set(false);
+          this.waitingListFeedback.set('El paciente quedó en la lista de espera.');
+        },
+        error: () => {
+          this.isAddingToWaitingList.set(false);
+          this.waitingListFeedback.set('No fue posible agregarlo a la lista de espera. Puede que ya esté en espera.');
+        },
+      });
   }
 
   protected createAppointment(): void {
@@ -384,6 +427,7 @@ export class SchedulingPageComponent {
       startAt: slot.startAt,
       endAt: slot.endAt,
       reason: this.appointmentReason.trim(),
+      ...(this.appointmentTypeCode ? { typeCode: this.appointmentTypeCode } : {}),
     };
 
     const idempotencyKey =
