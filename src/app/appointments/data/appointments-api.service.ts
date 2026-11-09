@@ -1,3 +1,10 @@
+import type {
+  AppointmentType,
+  CreateWaitingListEntryRequest,
+  ResolveWaitingListEntryRequest,
+  WaitingListEntry,
+  WaitingListStatus,
+} from '../model/waiting-list';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -35,6 +42,32 @@ export class AppointmentsApiService {
     query: AppointmentListQuery = {},
   ): Observable<Page<Appointment>> {
     return this.get<Page<Appointment>>('/appointments', query);
+  }
+
+  /** HU-APT-006: active appointment types, in catalog order. */
+  listAppointmentTypes(): Observable<{ readonly data: readonly AppointmentType[] }> {
+    return this.get('/appointment-types');
+  }
+
+  /** HU-APT-005: waiting-list entries, oldest first. */
+  listWaitingList(status: WaitingListStatus = 'WAITING'): Observable<Page<WaitingListEntry>> {
+    return this.get<Page<WaitingListEntry>>('/waiting-list-entries', { status, limit: 100 });
+  }
+
+  createWaitingListEntry(request: CreateWaitingListEntryRequest, idempotencyKey: string): Observable<WaitingListEntry> {
+    return this.postWithIdempotency('/waiting-list-entries', request, idempotencyKey);
+  }
+
+  resolveWaitingListEntry(
+    id: string,
+    request: ResolveWaitingListEntryRequest,
+    idempotencyKey: string,
+  ): Observable<WaitingListEntry> {
+    return this.postWithIdempotency(
+      `/waiting-list-entries/${encodeURIComponent(id)}/resolutions`,
+      request,
+      idempotencyKey,
+    );
   }
 
   getAppointment(id: string): Observable<Appointment> {
