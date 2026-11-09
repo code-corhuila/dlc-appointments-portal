@@ -143,12 +143,12 @@ const MONTH_NAMES = [
                 @let dailyAppointments = appointmentsForDate(day.date);
                 <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (pointerenter)="openDailyPreview(day.date, $event)" (keydown.escape)="closeDailyPreview()">
                   <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
-                  @for (appointment of dailyAppointments.slice(0, 2); track appointment.id) {
+                  @for (appointment of dailyAppointments.slice(0, visibleLabels()); track appointment.id) {
                     <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" (click)="selectAppointment(appointment)">
                       {{ appointment.startAt.slice(11, 16) }}<span class="visually-hidden">{{ appointment.status }}</span>
                     </button>
                   }
-                  @if (dailyAppointments.length > 2) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - 2 }}</button> }
+                  @if (dailyAppointments.length > visibleLabels()) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - visibleLabels() }}</button> }
                   @if (dailyAppointments.length) {
                     <button type="button" class="calendar-day-preview-trigger" [attr.data-daily-preview-trigger]="day.date" [attr.aria-expanded]="dailyPreviewDate() === day.date" [attr.aria-controls]="'daily-preview-' + day.date" [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (focus)="openDailyPreview(day.date, $event)" (click)="openDailyPreview(day.date, $event)">
                       <span aria-hidden="true">⌄</span>
@@ -249,6 +249,8 @@ export class CalendarPageComponent {
   private readonly reload = signal(0);
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  /** The month grid keeps two labels per day and summarizes the rest as "+N"; the week view lists every one. */
+  readonly visibleLabels = computed(() => (this.view() === 'week' ? Number.POSITIVE_INFINITY : 2));
   readonly dailyPreviewDate = signal<string | null>(null);
   readonly dailyPreviewPosition = signal({ top: 16, left: 16 });
   readonly appointmentNotice = signal<string | null>(null);
