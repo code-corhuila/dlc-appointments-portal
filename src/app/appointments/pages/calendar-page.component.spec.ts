@@ -42,6 +42,8 @@ describe('CalendarPageComponent', () => {
               queries.push(query);
               return respond(query);
             },
+            listAppointmentTypes: () => of({ data: [{ code: 'LIMPIEZA', label: 'Limpieza', color: '#0D9488' }] }),
+            listWaitingList: () => of(page([] as never)),
           },
         },
         {
@@ -138,12 +140,21 @@ describe('CalendarPageComponent', () => {
     expect(queries.length).toBe(before + 1);
   });
 
-  it('has no demonstration panels, waiting list or simulated data', async () => {
+  it('has no demonstration panels or simulated data; its side panel comes from Appointments', async () => {
     const fixture = await create();
 
     expect(query(fixture, '[data-demo-fixture]')).toBeNull();
-    expect(query(fixture, '[data-waiting-count]')).toBeNull();
-    expect(text(fixture)).not.toMatch(/Demostra|simulad/i);
+    expect(text(fixture)).not.toMatch(/Demostra|simulad|Ana Garc/i);
+    expect(query(fixture, 'app-calendar-side-panel [data-waiting-count]')?.textContent?.trim()).toBe('0');
+  });
+
+  it('colours an appointment label with its type from the catalog', async () => {
+    respond = () => of(page([{ ...appointment('t-1', '2026-11-05T15:00:00Z', '2026-11-05T15:30:00Z'), typeCode: 'LIMPIEZA' }]));
+    const fixture = await create();
+
+    const label = query(fixture, '[data-calendar-appointment="t-1"]')!;
+    expect(label.style.borderLeftColor).toBe('rgb(13, 148, 136)');
+    expect(label.getAttribute('title')).toBe('Limpieza');
   });
 
   it.each(['ADMINISTRATOR', 'SECRETARY_ASSISTANT'])('offers scheduling to %s', async (role) => {

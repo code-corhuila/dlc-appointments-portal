@@ -23,6 +23,8 @@ import { AppointmentActionsComponent } from './appointment-actions.component';
 import { Router } from '@angular/router';
 import { CompositionNavigationService } from '../../composition-navigation.service';
 import { SHELL_CONTEXT } from '../../shell-contract';
+import { CalendarSidePanelComponent } from '../components/calendar-side-panel.component';
+import type { AppointmentType } from '../model/waiting-list';
 
 const SCHEDULING_ROLES = new Set([
   'ADMINISTRATOR',
@@ -54,7 +56,7 @@ const MONTH_NAMES = [
   selector: 'app-calendar-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppointmentActionsComponent, ApiErrorAlertComponent],
+  imports: [AppointmentActionsComponent, ApiErrorAlertComponent, CalendarSidePanelComponent],
   styleUrl: './calendar-page.component.css',
   template: `
     <main class="calendar-page">
@@ -144,7 +146,7 @@ const MONTH_NAMES = [
                 <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (pointerenter)="openDailyPreview(day.date, $event)" (keydown.escape)="closeDailyPreview()">
                   <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
                   @for (appointment of dailyAppointments.slice(0, visibleLabels()); track appointment.id) {
-                    <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" (click)="selectAppointment(appointment)">
+                    <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" [style.border-left-color]="typeOf(appointment)?.color" [attr.title]="typeOf(appointment)?.label" (click)="selectAppointment(appointment)">
                       {{ appointment.startAt.slice(11, 16) }}<span class="visually-hidden">{{ appointment.status }}</span>
                     </button>
                   }
@@ -209,6 +211,7 @@ const MONTH_NAMES = [
           }
         </div>
 
+        <app-calendar-side-panel />
       </section>
     </main>
   `,
@@ -251,6 +254,8 @@ export class CalendarPageComponent {
   readonly selectedAppointment = signal<Appointment | null>(null);
   /** The month grid keeps two labels per day and summarizes the rest as "+N"; the week view lists every one. */
   readonly visibleLabels = computed(() => (this.view() === 'week' ? Number.POSITIVE_INFINITY : 2));
+  /** HU-APT-006: catalog types by code, to colour each appointment label. */
+  private readonly types = signal<ReadonlyMap<string, AppointmentType>>(new Map());
   readonly dailyPreviewDate = signal<string | null>(null);
   readonly dailyPreviewPosition = signal({ top: 16, left: 16 });
   readonly appointmentNotice = signal<string | null>(null);
@@ -294,6 +299,10 @@ export class CalendarPageComponent {
   });
 
   constructor() {
+    this.api.listAppointmentTypes().pipe(takeUntilDestroyed()).subscribe({
+      next: (catalog) => this.types.set(new Map(catalog.data.map((type) => [type.code, type]))),
+      error: () => this.types.set(new Map()),
+    });
     const source = new CalendarDataSource(this.api);
     source.errors$
       .pipe(takeUntilDestroyed())
@@ -377,6 +386,10 @@ export class CalendarPageComponent {
     return this.appointments()
       .filter((appointment) => appointment.startAt.startsWith(date))
       .sort((first, second) => first.startAt.localeCompare(second.startAt));
+  }
+
+  typeOf(appointment: Appointment): AppointmentType | undefined {
+    return appointment.typeCode ? this.types().get(appointment.typeCode) : undefined;
   }
 
   openDailyPreview(date: string, event?: Event): void {
