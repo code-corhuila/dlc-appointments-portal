@@ -214,4 +214,45 @@ describe('CalendarPageComponent', () => {
     ).map((item) => item.getAttribute('data-daily-preview-appointment'));
     expect(items).toEqual(['a-1', 'a-2']);
   });
+
+  describe('a busy day', () => {
+    const busy = ['13:00', '14:00', '15:00', '16:00', '17:00'].map((time, index) =>
+      appointment(`b-${index + 1}`, `2026-11-05T${time}:00Z`, `2026-11-05T${time.slice(0, 2)}:30:00Z`),
+    );
+    const ids = (root: HTMLElement, selector: string, attribute: string) =>
+      Array.from(root.querySelectorAll(selector)).map((item) =>
+        item.getAttribute(attribute),
+      );
+
+    beforeEach(() => {
+      respond = () => of(page(busy));
+    });
+
+    it('shows every appointment of the day in the week view, without hiding any behind "+N"', async () => {
+      const fixture = await create();
+      query(fixture, '[data-calendar-view="week"]')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const day = query(fixture, '[data-calendar-day][data-date="2026-11-05"]')!;
+      expect(ids(day, '[data-calendar-appointment]', 'data-calendar-appointment')).toEqual(
+        busy.map((item) => item.id),
+      );
+      expect(day.querySelector('[data-calendar-more]')).toBeNull();
+    });
+
+    it('lists the hidden appointments when "+N" is pressed in the month view', async () => {
+      const fixture = await create();
+      const more = query(fixture, '[data-calendar-day][data-date="2026-11-05"] [data-calendar-more]')!;
+      expect(more.textContent?.trim()).toBe('+3');
+
+      more.click();
+      fixture.detectChanges();
+
+      expect(ids(fixture.nativeElement as HTMLElement, '[data-daily-preview-appointment]', 'data-daily-preview-appointment')).toEqual(
+        busy.map((item) => item.id),
+      );
+    });
+  });
 });
