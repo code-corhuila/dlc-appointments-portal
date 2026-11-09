@@ -279,11 +279,27 @@
           Motivo de la cita
         </label>
 
+        <label for="appointment-type">Tipo de cita</label>
+        <select id="appointment-type" (change)="setAppointmentType($any($event.target).value)">
+          <option value="">Sin tipo</option>
+          @for (type of appointmentTypes(); track type.code) {
+            <option [value]="type.code">{{ type.label }}</option>
+          }
+        </select>
+
         <textarea
           id="reason"
           [value]="appointmentReason"
           placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."
           (input)="setAppointmentReason($any($event.target).value)"></textarea>
+
+        <button type="button" class="secondary-action" data-add-waiting-list
+          [disabled]="!canAddToWaitingList()" (click)="addToWaitingList()">
+          Agregar a lista de espera
+        </button>
+        @if (waitingListFeedback(); as feedback) {
+          <p data-waiting-list-feedback role="status">{{ feedback }}</p>
+        }
       </section>
     </div>
 
