@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Added
 
+- Scheduling: optional "Tipo de cita" from the catalog (HU-APT-006) and "Agregar a lista de espera" for the selected patient, dentist and reason (HU-APT-005).
 - Calendar side panel with the appointment-type legend (HU-APT-006) and the waiting list (HU-APT-005) from the Appointments API; staff can withdraw a waiting entry. Appointment labels take their type colour.
 
 ### Added
