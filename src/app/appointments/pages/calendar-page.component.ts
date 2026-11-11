@@ -14,6 +14,7 @@ import { ApiErrorAlertComponent } from '../components/api-error-alert.component'
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CalendarDataSource } from '../data/calendar-data-source';
 import { CLINIC_CLOCK } from '../data/clinic-clock';
+import { PatientsLookupService } from '../data/patients-lookup.service';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
 import { clinicToday, toClinicLocalDateTime } from '../domain/clinic-time';
@@ -34,7 +35,6 @@ const SCHEDULING_ROLES = new Set([
 const MANAGING_ROLES = new Set([
   'ADMINISTRATOR',
   'SECRETARY_ASSISTANT',
-  'DENTIST',
 ]);
 
 const MONTH_NAMES = [
@@ -143,16 +143,17 @@ const MONTH_NAMES = [
             >
               @for (day of days(); track day.date) {
                 @let dailyAppointments = appointmentsForDate(day.date);
-                <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (pointerenter)="openDailyPreview(day.date, $event)" (keydown.escape)="closeDailyPreview()">
+                <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (keydown.escape)="closeDailyPreview()">
                   <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
                   @for (appointment of dailyAppointments.slice(0, visibleLabels()); track appointment.id) {
                     <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" [style.border-left-color]="typeOf(appointment)?.color" [attr.title]="typeOf(appointment)?.label" (click)="selectAppointment(appointment)">
-                      {{ appointment.startAt.slice(11, 16) }}<span class="visually-hidden">{{ appointment.status }}</span>
+                      {{ appointment.startAt.slice(11, 16) }}
+                      @if (appointment.status === 'CANCELADA') { <span class="calendar-cancelled-label" data-cancelled-label>Cancelada</span> } @else { <span class="visually-hidden">{{ appointment.status }}</span> }
                     </button>
                   }
                   @if (dailyAppointments.length > visibleLabels()) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - visibleLabels() }}</button> }
                   @if (dailyAppointments.length) {
-                    <button type="button" class="calendar-day-preview-trigger" [attr.data-daily-preview-trigger]="day.date" [attr.aria-expanded]="dailyPreviewDate() === day.date" [attr.aria-controls]="'daily-preview-' + day.date" [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (focus)="openDailyPreview(day.date, $event)" (click)="openDailyPreview(day.date, $event)">
+                    <button type="button" class="calendar-day-preview-trigger" [attr.data-daily-preview-trigger]="day.date" [attr.aria-expanded]="dailyPreviewDate() === day.date" [attr.aria-controls]="'daily-preview-' + day.date" [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">
                       <span aria-hidden="true">⌄</span>
                     </button>
                   }
@@ -188,6 +189,17 @@ const MONTH_NAMES = [
             </div>
           }
 
+          @if (cancelledAppointments().length) {
+            <section class="calendar-panel cancelled-history" data-cancelled-history aria-label="Citas canceladas">
+              <h2>Canceladas en este período</h2>
+              <ul class="treatment-list">
+                @for (appointment of cancelledAppointments(); track appointment.id) {
+                  <li><button type="button" data-cancelled-history-item (click)="selectAppointment(appointment)">{{ formatAppointmentDate(appointment.startAt) }} · {{ formatAppointmentTime(appointment.startAt) }} · {{ appointment.reason ?? 'Cita' }}</button></li>
+                }
+              </ul>
+            </section>
+          }
+
           @if (selectedAppointment(); as appointment) {
             <section
               class="calendar-panel selected-appointment-panel"
@@ -195,12 +207,20 @@ const MONTH_NAMES = [
             >
               <h2>Cita seleccionada</h2>
               <dl>
+                <div><dt>Paciente</dt><dd data-selected-patient-name>{{ selectedPatientName() }}</dd></div>
                 <div><dt>Referencia</dt><dd>{{ appointment.id }}</dd></div>
                 <div><dt>Estado</dt><dd><span class="appointment-status">{{ appointment.status }}</span></dd></div>
                 <div><dt>Fecha</dt><dd>{{ formatAppointmentDate(appointment.startAt) }}</dd></div>
                 <div><dt>Horario</dt><dd>{{ formatAppointmentTime(appointment.startAt) }} – {{ formatAppointmentTime(appointment.endAt) }}</dd></div>
               </dl>
 
+              @if (appointment.status === 'EN_ATENCION') {
+                <button type="button" data-open-clinical-record (click)="openClinicalRecord(appointment)">Abrir historia clínica</button>
+              }
+
+              @if (!canManageAppointments()) {
+                <p data-appointment-role-guidance>La confirmación y el inicio de atención corresponden a administración o asistencia.</p>
+              }
               <app-appointment-actions
                 [appointment]="appointment"
                 [canManage]="canManageAppointments()"
@@ -225,6 +245,7 @@ export class CalendarPageComponent {
     { optional: true },
   );
   private readonly shellContext = inject(SHELL_CONTEXT, { optional: true });
+  private readonly patients = inject(PatientsLookupService);
   private readonly destroyRef = inject(DestroyRef);
   private noticeTimeout?: ReturnType<typeof setTimeout>;
 
@@ -248,10 +269,12 @@ export class CalendarPageComponent {
 
   /** Appointments of the visible period, read from the Appointments API and shown at clinic time. */
   readonly appointments = signal<readonly Appointment[]>([]);
+  readonly cancelledAppointments = computed(() => this.appointments().filter((appointment) => appointment.status === 'CANCELADA'));
   readonly loadError = signal<ApiError | null>(null);
   private readonly reload = signal(0);
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  readonly selectedPatientName = signal('Seleccione una cita');
   /** The month grid keeps two labels per day and summarizes the rest as "+N"; the week view lists every one. */
   readonly visibleLabels = computed(() => (this.view() === 'week' ? Number.POSITIVE_INFINITY : 2));
   /** HU-APT-006: catalog types by code, to colour each appointment label. */
@@ -416,6 +439,7 @@ export class CalendarPageComponent {
 
   selectPreviewAppointment(appointment: Appointment): void {
     this.selectAppointment(appointment);
+    this.closeDailyPreview();
   }
 
   @HostListener('document:click', ['$event'])
@@ -426,11 +450,22 @@ export class CalendarPageComponent {
   }
 
   selectAppointmentForDate(date: string): void {
-    this.selectedAppointment.set(this.appointmentForDate(date) ?? null);
+    const appointment = this.appointmentForDate(date);
+    if (appointment) this.selectAppointment(appointment);
+    else this.selectedAppointment.set(null);
   }
 
   selectAppointment(appointment: Appointment): void {
     this.selectedAppointment.set(appointment);
+    this.selectedPatientName.set('Cargando paciente…');
+    this.patients.getPatient(appointment.patientId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (patient) => { if (this.selectedAppointment()?.patientId === appointment.patientId) this.selectedPatientName.set(patient.name); },
+      error: () => { if (this.selectedAppointment()?.patientId === appointment.patientId) this.selectedPatientName.set('No se pudo cargar el paciente'); },
+    });
+  }
+
+  openClinicalRecord(appointment: Appointment): void {
+    if (appointment.status === 'EN_ATENCION') this.shellContext?.navigation.request({ path: `/app/clinical/${encodeURIComponent(appointment.patientId)}` });
   }
 
   /** After a lifecycle action the period is read again, so the calendar shows the owner state. */

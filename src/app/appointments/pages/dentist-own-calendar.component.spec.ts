@@ -26,6 +26,7 @@ describe('DentistOwnCalendarComponent', () => {
   let queries: AppointmentListQuery[];
   let respond: () => Observable<Page<Appointment>>;
   let patientReads: string[];
+  let navigationRequests: { path: string }[];
 
   async function create(): Promise<ComponentFixture<DentistOwnCalendarComponent>> {
     await TestBed.configureTestingModule({
@@ -34,7 +35,7 @@ describe('DentistOwnCalendarComponent', () => {
         { provide: CLINIC_CLOCK, useValue: () => NOW },
         {
           provide: SHELL_CONTEXT,
-          useValue: { session: { getSnapshot: () => ({ user: { id: 'dentist-7', name: 'Dra. Ruiz', roles: ['DENTIST'] } }) } },
+          useValue: { session: { getSnapshot: () => ({ user: { id: 'dentist-7', name: 'Dra. Ruiz', roles: ['DENTIST'] } }) }, navigation: { request: (request: { path: string }) => navigationRequests.push(request) } },
         },
         {
           provide: AppointmentsApiService,
@@ -70,6 +71,7 @@ describe('DentistOwnCalendarComponent', () => {
   beforeEach(() => {
     queries = [];
     patientReads = [];
+    navigationRequests = [];
     respond = () =>
       of({
         data: [own('a-1', '2026-11-10T19:00:00Z'), own('a-2', '2026-11-12T14:00:00Z', 'p-2')],
@@ -117,6 +119,26 @@ describe('DentistOwnCalendarComponent', () => {
     const detail = el(fixture).querySelector('[data-own-appointment-detail]');
     expect(detail?.textContent).toContain('10 de noviembre de 2026');
     expect(detail?.textContent).toContain('Ana Torres');
+  });
+
+  it('opens the patient clinical record for an appointment already in attention', async () => {
+    respond = () => of({ data: [{ ...own('a-1', '2026-11-10T19:00:00Z'), status: 'EN_ATENCION' }], meta: { page: 1, limit: 100, total: 1, totalPages: 1 } });
+    const fixture = await create();
+    el(fixture).querySelector<HTMLElement>('[data-appointment-id="a-1"]')?.click();
+    fixture.detectChanges();
+    const button = el(fixture).querySelector<HTMLElement>('[data-open-clinical-record]');
+    expect(button).not.toBeNull();
+    button?.click();
+    expect(navigationRequests).toEqual([{ path: '/app/clinical/p-1' }]);
+  });
+
+  it('explains who starts attention for a confirmed appointment', async () => {
+    respond = () => of({ data: [{ ...own('a-1', '2026-11-10T19:00:00Z'), status: 'CONFIRMADA' }], meta: { page: 1, limit: 100, total: 1, totalPages: 1 } });
+    const fixture = await create();
+    el(fixture).querySelector<HTMLElement>('[data-appointment-id="a-1"]')?.click();
+    fixture.detectChanges();
+    expect(el(fixture).querySelector('[data-attention-instructions]')?.textContent).toContain('administración');
+    expect(el(fixture).querySelector('[data-open-clinical-record]')).toBeNull();
   });
 
   it('reads the next month when navigating', async () => {

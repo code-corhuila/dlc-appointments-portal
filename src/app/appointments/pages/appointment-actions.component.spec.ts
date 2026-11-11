@@ -206,6 +206,21 @@ describe('AppointmentActionsComponent', () => {
       .toContain('permisos');
   });
 
+  it('explains a permission denial returned by the shell transport', () => {
+    confirmAppointment.mockReturnValue(throwError(() => ({ error: 'FORBIDDEN', message: 'Forbidden', traceId: 'trace' })));
+    const element = submitConfirmation(createFixture());
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('permisos');
+  });
+
+  it('does not show the cancellation restriction while confirming', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('now', new Date('2026-10-20T13:00:00Z'));
+    fixture.detectChanges();
+    const element = openConfirmation(fixture);
+    expect(element.querySelector('[data-cancellation-restriction]')).toBeNull();
+    expect(element.querySelector('[data-confirmation-channel]')).not.toBeNull();
+  });
+
   it('explains when the appointment version conflicts', () => {
     confirmAppointment.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: 409 })),
@@ -412,6 +427,15 @@ describe('AppointmentActionsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector(
       '[data-appointment-cancel]',
     )).toBeNull();
+  });
+
+  it('allows cancelling and rescheduling a confirmed appointment outside the 24-hour window', () => {
+    const fixture = createFixture();
+    fixture.componentRef.setInput('appointment', { ...appointment, status: 'CONFIRMADA', version: 2 });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[data-appointment-cancel]')).not.toBeNull();
+    expect(element.querySelector('[data-appointment-reschedule]')).not.toBeNull();
   });
 
   it('prevents duplicate cancellation submissions while a request is pending', () => {

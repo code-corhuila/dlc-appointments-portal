@@ -28,6 +28,8 @@ const NO_ACCESS = 'Paciente sin acceso';
     .own-appointment[data-status='PROGRAMADA'] { background: #cfe0ff; color: #1554a3; }
     .own-appointment[data-status='FINALIZADA'] { background: #e7f6f4; color: #0f766e; }
     .own-appointment[aria-pressed='true'], .own-day-number[aria-pressed='true'] { outline: 2px solid var(--focus); }
+    .clinical-action { display: inline-block; padding: 9px 12px; border-radius: 4px; background: #0f766e; color: white; font-weight: 700; }
+    .attention-instructions { color: #59646d; line-height: 1.4; }
   `],
   template: `
     <main class="calendar-page" aria-labelledby="dentist-own-calendar-title">
@@ -53,7 +55,13 @@ const NO_ACCESS = 'Paciente sin acceso';
           </section>
           @if (selectedAppointment(); as appointment) { <section class="calendar-panel selected-appointment-panel" data-own-appointment-detail><h2>Detalle de cita</h2><dl>
             <div><dt>Paciente</dt><dd>{{ patientName(appointment.patientId) }}</dd></div><div><dt>Fecha</dt><dd>{{ formatDate(appointment.startAt) }}</dd></div><div><dt>Horario</dt><dd>{{ formatTime(appointment.startAt) }} – {{ formatTime(appointment.endAt) }}</dd></div><div><dt>Estado</dt><dd>{{ appointment.status }}</dd></div><div><dt>Referencia</dt><dd>{{ appointment.id }}</dd></div>
-          </dl></section> }
+          </dl>
+            @if (appointment.status === 'EN_ATENCION') {
+              <button type="button" class="clinical-action" data-open-clinical-record (click)="openClinicalRecord(appointment)">Atender paciente</button>
+            } @else if (appointment.status === 'CONFIRMADA') {
+              <p class="attention-instructions" data-attention-instructions>Solicita a administración que inicie la atención para poder atender al paciente.</p>
+            }
+          </section> }
         </aside>
       </section>
     </main>
@@ -62,7 +70,8 @@ const NO_ACCESS = 'Paciente sin acceso';
 export class DentistOwnCalendarComponent {
   private readonly patients = inject(PatientsLookupService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly dentistId = inject(SHELL_CONTEXT, { optional: true })?.session.getSnapshot().user?.id;
+  private readonly shell = inject(SHELL_CONTEXT, { optional: true });
+  private readonly dentistId = this.shell?.session.getSnapshot().user?.id;
   private readonly today = clinicToday(inject(CLINIC_CLOCK)());
   private readonly patientNames = signal<Readonly<Record<string, string>>>({});
   readonly weekdays = WEEKDAYS;
@@ -93,6 +102,9 @@ export class DentistOwnCalendarComponent {
   formatDate(value: string): string { const [year, month, day] = value.slice(0, 10).split('-').map(Number); return `${day} de ${MONTH_NAMES[month - 1]} de ${year}`; }
   selectDay(date: string): void { this.selectedDate.set(date); this.selectedAppointment.set(null); }
   selectAppointment(appointment: Appointment): void { this.selectedDate.set(appointment.startAt.slice(0, 10)); this.selectedAppointment.set(appointment); }
+  openClinicalRecord(appointment: Appointment): void {
+    if (appointment.status === 'EN_ATENCION') this.shell?.navigation.request({ path: `/app/clinical/${encodeURIComponent(appointment.patientId)}` });
+  }
   navigateMonth(direction: -1 | 1): void { const [year, month] = this.anchorDate().split('-').map(Number); const next = new Date(Date.UTC(year, month - 1 + direction, 1)); const date = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-01`; this.anchorDate.set(date); this.selectedDate.set(date); this.selectedAppointment.set(null); }
 
   /** Names come from Patients, which only answers for the dentist's assigned patients. */

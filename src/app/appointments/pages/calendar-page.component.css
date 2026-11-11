@@ -217,6 +217,22 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.calendar-cancelled-label {
+  display: block;
+  color: #8b2635;
+  font-size: 9px;
+}
+
+.cancelled-history {
+  margin-top: 16px;
+}
+
+.cancelled-history button {
+  width: 100%;
+  text-align: left;
+  color: #8b2635;
+}
+
 .calendar-day:nth-child(7n) {
   border-right: 0;
 }

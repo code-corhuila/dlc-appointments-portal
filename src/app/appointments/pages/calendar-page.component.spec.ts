@@ -7,6 +7,7 @@ import { CompositionNavigationService } from '../../composition-navigation.servi
 import { SHELL_CONTEXT } from '../../shell-contract';
 import { AppointmentsApiService } from '../data/appointments-api.service';
 import { CLINIC_CLOCK } from '../data/clinic-clock';
+import { PatientsLookupService } from '../data/patients-lookup.service';
 import { Appointment } from '../model/appointment';
 import { AppointmentListQuery } from '../model/appointment-operations';
 import { Page } from '../model/page';
@@ -35,6 +36,7 @@ describe('CalendarPageComponent', () => {
       imports: [CalendarPageComponent],
       providers: [
         { provide: CLINIC_CLOCK, useValue: () => NOW },
+        { provide: PatientsLookupService, useValue: { getPatient: () => of({ name: 'Paciente de prueba' }) } },
         {
           provide: AppointmentsApiService,
           useValue: {
@@ -97,6 +99,37 @@ describe('CalendarPageComponent', () => {
     expect(tenth?.querySelectorAll('[data-calendar-appointment]')).toHaveLength(2);
     expect(tenth?.textContent).toContain('14:00');
     expect(tenth?.textContent).toContain('22:30');
+  });
+
+  it('shows the patient and opens the clinical record for an appointment in care', async () => {
+    respond = () => of(page([appointment('a-1', '2026-11-10T19:00:00Z', '2026-11-10T19:30:00Z', 'EN_ATENCION')]));
+    const fixture = await create();
+    query(fixture, '[data-calendar-appointment="a-1"]')?.click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-selected-patient-name]')?.textContent).toContain('Paciente de prueba');
+    query(fixture, '[data-open-clinical-record]')?.click();
+    expect(TestBed.inject(SHELL_CONTEXT)?.navigation.request).toHaveBeenCalledWith({ path: '/app/clinical/p-1' });
+  });
+
+  it('visibly identifies cancelled appointments in the calendar', async () => {
+    respond = () => of(page([appointment('cancelled', '2026-11-10T19:00:00Z', '2026-11-10T19:30:00Z', 'CANCELADA')]));
+    const fixture = await create();
+    const label = query(fixture, '[data-calendar-appointment="cancelled"]');
+    expect(label?.querySelector('[data-cancelled-label]')?.textContent).toContain('Cancelada');
+  });
+
+  it('lists cancelled appointments for the visible period and opens their details', async () => {
+    respond = () => of(page([
+      appointment('cancelled', '2026-11-10T19:00:00Z', '2026-11-10T19:30:00Z', 'CANCELADA'),
+      appointment('active', '2026-11-11T19:00:00Z', '2026-11-11T19:30:00Z'),
+    ]));
+    const fixture = await create();
+    const history = query(fixture, '[data-cancelled-history]');
+    expect(history?.textContent).toContain('Canceladas en este período');
+    expect(history?.querySelectorAll('[data-cancelled-history-item]')).toHaveLength(1);
+    (history?.querySelector('[data-cancelled-history-item]') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-selected-appointment]')?.textContent).toContain('CANCELADA');
   });
 
   it('reads the next period when the user navigates', async () => {
@@ -171,6 +204,14 @@ describe('CalendarPageComponent', () => {
     expect(query(fixture, '[data-schedule-appointment]')).toBeNull();
   });
 
+  it('does not offer management actions to a dentist and explains who can start attention', async () => {
+    const fixture = await create(['DENTIST']);
+    query(fixture, '[data-calendar-appointment="a-1"]')?.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.canManageAppointments()).toBe(false);
+    expect(query(fixture, '[data-appointment-role-guidance]')?.textContent).toContain('administración o asistencia');
+  });
+
   it('uses shell navigation to request the composed scheduling route', async () => {
     const request = vi.fn();
     const fixture = await create(['ADMINISTRATOR'], [
@@ -224,6 +265,13 @@ describe('CalendarPageComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelectorAll('[data-daily-preview-appointment]'),
     ).map((item) => item.getAttribute('data-daily-preview-appointment'));
     expect(items).toEqual(['a-1', 'a-2']);
+  });
+
+  it('does not cover the calendar with a preview when the pointer crosses a day', async () => {
+    const fixture = await create();
+    query(fixture, '[data-calendar-day][data-date="2026-11-10"]')?.dispatchEvent(new Event('pointerenter'));
+    fixture.detectChanges();
+    expect(query(fixture, '[data-daily-appointment-preview]')).toBeNull();
   });
 
   describe('a busy day', () => {

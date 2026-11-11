@@ -19,13 +19,22 @@ import {
   RescheduleAppointmentRequest,
 } from '../model/appointment-operations';
 
+function lifecycleErrorStatus(error: unknown): number | null {
+  if (error instanceof HttpErrorResponse) return error.status;
+  if (typeof error !== 'object' || error === null || !('error' in error)) return null;
+  if (error.error === 'FORBIDDEN') return 403;
+  if (error.error === 'STALE_VERSION' || error.error === 'APPOINTMENT_CONFLICT' || error.error === 'IDEMPOTENCY_CONFLICT') return 409;
+  return null;
+}
+
 @Component({
   selector: 'app-appointment-actions',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-label="Acciones de la cita">
-      @if (canManage() && currentAppointment().status === 'PROGRAMADA') {
+      @if (canManage() && (currentAppointment().status === 'PROGRAMADA' || currentAppointment().status === 'CONFIRMADA')) {
+        @if (currentAppointment().status === 'PROGRAMADA') {
         <button
           type="button"
           class="action-primary"
@@ -61,6 +70,8 @@ import {
           >
             Guardar confirmación
           </button>
+        }
+
         }
 
         @if (canCancel()) {
@@ -105,9 +116,9 @@ import {
               Volver
             </button>
           }
-        } @else if (isCancellationRestricted()) {
+        } @else if (isCancellationRestricted() && !isChoosingChannel()) {
           <p data-cancellation-restriction>
-            La cancelación normal no está disponible dentro de las 24 horas previas a la cita.
+            Cancelación: la cancelación normal no está disponible dentro de las 24 horas previas a la cita.
           </p>
         }
 
@@ -220,7 +231,7 @@ export class AppointmentActionsComponent {
     const appointment = this.currentAppointment();
 
     return this.canManage() &&
-      appointment.status === 'PROGRAMADA' &&
+      (appointment.status === 'PROGRAMADA' || appointment.status === 'CONFIRMADA') &&
       new Date(appointment.startAt).getTime() - this.now().getTime() >=
         24 * 60 * 60 * 1000;
   });
@@ -229,7 +240,7 @@ export class AppointmentActionsComponent {
     const appointment = this.currentAppointment();
 
     return this.canManage() &&
-      appointment.status === 'PROGRAMADA' &&
+      (appointment.status === 'PROGRAMADA' || appointment.status === 'CONFIRMADA') &&
       !this.canCancel();
   });
 
@@ -335,10 +346,7 @@ export class AppointmentActionsComponent {
         error: (error: unknown) => {
           this.isSubmitting.set(false);
 
-          const status =
-            error instanceof HttpErrorResponse
-              ? error.status
-              : null;
+          const status = lifecycleErrorStatus(error);
 
           if (status === 403) {
             this.errorMessage.set(
@@ -412,7 +420,7 @@ export class AppointmentActionsComponent {
         },
         error: (error: unknown) => {
           this.isSubmitting.set(false);
-          const status = error instanceof HttpErrorResponse ? error.status : null;
+          const status = lifecycleErrorStatus(error);
 
           if (status === 403) {
             this.errorMessage.set('No tienes permisos para cancelar esta cita.');
