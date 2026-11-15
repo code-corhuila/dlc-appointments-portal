@@ -17,7 +17,8 @@
           <button
             type="button"
             class="secondary-action"
-            data-new-patient>
+            data-new-patient
+            (click)="openNewPatient()">
             <span aria-hidden="true">+</span>
             Nuevo Paciente
           </button>
@@ -108,45 +109,6 @@
           <div>
             <span class="section-number">2</span>
             <h2>Detalles de la Cita</h2>
-          </div>
-        </div>
-
-        <div class="details-grid">
-          <div>
-            <label for="specialty">
-              Especialidad Requerida
-            </label>
-
-            <select
-              id="specialty"
-              (change)="selectSpecialty($any($event.target).value)">
-              <option value="">
-                Seleccionar especialidad
-              </option>
-
-              @for (specialty of specialties; track specialty.id) {
-                <option [value]="specialty.id">{{ specialty.name }}</option>
-              }
-            </select>
-          </div>
-
-          <div>
-            <label for="consultation-type">
-              Tipo de Consulta
-            </label>
-
-            <select
-              id="consultation-type"
-              [disabled]="!selectedSpecialty()"
-              (change)="selectConsultation($any($event.target).value)">
-              <option value="">
-                Seleccionar tipo de consulta
-              </option>
-
-              @for (consultation of consultations(); track consultation) {
-                <option [value]="consultation">{{ consultation }}</option>
-              }
-            </select>
           </div>
         </div>
 
@@ -283,29 +245,23 @@
           }
         </select>
 
-        @if (selectedSpecialty()) {
-          <div class="specialist-options" aria-label="Odontólogos demostrativos">
-            @for (dentist of dentists(); track dentist.id) {
-              <button
-                type="button"
-                class="specialist-option"
-                data-demo-dentist
-                [attr.aria-pressed]="selectedDentistId() === dentist.id"
-                (click)="selectDentist(dentist.id)">
-                <span class="specialist-photo" aria-hidden="true">♙</span>
-                <span class="specialist-info">
-                  <strong>{{ dentist.name }}</strong>
-                  <span>{{ selectedSpecialtyName() }} · Demostración</span>
-                </span>
-              </button>
-            }
-          </div>
-        }
+        <div class="specialist-options" aria-label="Odontólogos">
+          @for (dentist of dentists(); track dentist.id) {
+            <button
+              type="button"
+              class="specialist-option"
+              data-dentist-option
+              [attr.aria-pressed]="selectedDentistId() === dentist.id"
+              (click)="selectDentist(dentist.id)">
+              <span class="specialist-info">
+                <strong>{{ dentist.name }}</strong>
+              </span>
+            </button>
+          }
+        </div>
 
         @if (dentists().length === 0) {
-          <p
-            class="specialist-helper"
-            data-dentist-directory-empty>
+          <p class="specialist-helper" data-dentist-directory-empty>
             No hay odontólogos disponibles en el directorio autorizado.
           </p>
         }
@@ -323,11 +279,27 @@
           Motivo de la cita
         </label>
 
+        <label for="appointment-type">Tipo de cita</label>
+        <select id="appointment-type" (change)="setAppointmentType($any($event.target).value)">
+          <option value="">Sin tipo</option>
+          @for (type of appointmentTypes(); track type.code) {
+            <option [value]="type.code">{{ type.label }}</option>
+          }
+        </select>
+
         <textarea
           id="reason"
           [value]="appointmentReason"
           placeholder="Escriba el motivo principal de la consulta o notas internas para el especialista..."
           (input)="setAppointmentReason($any($event.target).value)"></textarea>
+
+        <button type="button" class="secondary-action" data-add-waiting-list
+          [disabled]="!canAddToWaitingList()" (click)="addToWaitingList()">
+          Agregar a lista de espera
+        </button>
+        @if (waitingListFeedback(); as feedback) {
+          <p data-waiting-list-feedback role="status">{{ feedback }}</p>
+        }
       </section>
     </div>
 
@@ -358,17 +330,6 @@
             }
           } @else {
             No seleccionada
-          }
-        </strong>
-      </div>
-
-      <div class="summary-row">
-        <span>Servicio</span>
-        <strong data-selected-service>
-          @if (selectedSpecialty() && selectedConsultation()) {
-            {{ selectedSpecialtyName() }} · {{ selectedConsultation() }}
-          } @else {
-            No seleccionado
           }
         </strong>
       </div>

@@ -1,78 +1,46 @@
-import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
 
+import { SHELL_CONTEXT, ShellHttpRequest } from '../../shell-contract';
+import { fakeShellContext, shellOk } from '../../../testing/fake-shell';
 import { PatientsLookupService } from './patients-lookup.service';
 
 describe('PatientsLookupService', () => {
   let service: PatientsLookupService;
-  let httpTesting: HttpTestingController;
+  let calls: ShellHttpRequest[];
 
   beforeEach(() => {
+    const shell = fakeShellContext(() =>
+      shellOk({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } }),
+    );
+    calls = shell.calls;
     TestBed.configureTestingModule({
-      providers: [
-        PatientsLookupService,
-        provideHttpClient(),
-        provideHttpClientTesting(),
-      ],
+      providers: [{ provide: SHELL_CONTEXT, useValue: shell.context }],
     });
-
     service = TestBed.inject(PatientsLookupService);
-    httpTesting = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => {
-    httpTesting.verify();
-  });
-
-  it('searches patients using relative API routes and query parameters', () => {
-    service
-      .searchPatients({
-        page: 1,
-        limit: 20,
-        search: 'Daniel',
-        status: 'ACTIVE',
-      })
-      .subscribe();
-
-    const request = httpTesting.expectOne((candidate) => {
-      return candidate.url === '/api/v1/patients';
-    });
-
-    expect(request.request.method).toBe('GET');
-    expect(request.request.params.get('page')).toBe('1');
-    expect(request.request.params.get('limit')).toBe('20');
-    expect(request.request.params.get('search')).toBe('Daniel');
-    expect(request.request.params.get('status')).toBe('ACTIVE');
-
-    request.flush({
-      data: [],
-      meta: {
-        page: 1,
-        limit: 20,
-        total: 0,
-        totalPages: 0,
-      },
-    });
-  });
-
-  it('reads a patient by id using the published Patients route', () => {
-    service.getPatient('patient-1').subscribe();
-
-    const request = httpTesting.expectOne(
-      '/api/v1/patients/patient-1',
+  it('searches patients through the shell with the Patients query parameters', async () => {
+    await firstValueFrom(
+      service.searchPatients({ page: 1, limit: 20, search: 'Daniel', status: 'ACTIVE' }),
     );
 
-    expect(request.request.method).toBe('GET');
-
-    request.flush({
-      id: 'patient-1',
-      name: 'Daniel Perez',
-      status: 'ACTIVE',
-      version: 1,
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      path: '/api/v1/patients',
+      query: { page: ['1'], limit: ['20'], search: ['Daniel'], status: ['ACTIVE'] },
     });
+  });
+
+  it('omits filters that were not given', async () => {
+    await firstValueFrom(service.searchPatients());
+
+    expect(calls[0].query).toEqual({});
+  });
+
+  it('reads a patient by id using the published Patients route', async () => {
+    await firstValueFrom(service.getPatient('p/1'));
+
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/v1/patients/p%2F1' });
   });
 });

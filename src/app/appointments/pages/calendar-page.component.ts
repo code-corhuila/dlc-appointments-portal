@@ -8,24 +8,33 @@ import {
   signal,
 } from '@angular/core';
 
-import {
-  CALENDAR_SUPPORT_DATA_SOURCE,
-  WaitingListItem,
-} from '../data/calendar-support-data-source';
-import { CalendarAppointmentDemoService } from '../data/calendar-appointment-demo.service';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+
+import { ApiErrorAlertComponent } from '../components/api-error-alert.component';
 import { AppointmentsApiService } from '../data/appointments-api.service';
-import { DemoAppointmentStore } from '../data/demo-appointment-store';
+import { CalendarDataSource } from '../data/calendar-data-source';
+import { CLINIC_CLOCK } from '../data/clinic-clock';
 import { buildCalendarDays } from '../domain/calendar-grid';
 import { CalendarView } from '../domain/calendar-range';
+import { clinicToday, toClinicLocalDateTime } from '../domain/clinic-time';
+import { ApiError } from '../model/api-error';
 import { Appointment } from '../model/appointment';
 import { AppointmentActionsComponent } from './appointment-actions.component';
 import { Router } from '@angular/router';
 import { CompositionNavigationService } from '../../composition-navigation.service';
 import { SHELL_CONTEXT } from '../../shell-contract';
+import { CalendarSidePanelComponent } from '../components/calendar-side-panel.component';
+import type { AppointmentType } from '../model/waiting-list';
 
 const SCHEDULING_ROLES = new Set([
   'ADMINISTRATOR',
   'SECRETARY_ASSISTANT',
+]);
+
+const MANAGING_ROLES = new Set([
+  'ADMINISTRATOR',
+  'SECRETARY_ASSISTANT',
+  'DENTIST',
 ]);
 
 const MONTH_NAMES = [
@@ -47,13 +56,7 @@ const MONTH_NAMES = [
   selector: 'app-calendar-page',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppointmentActionsComponent],
-  providers: [
-    {
-      provide: AppointmentsApiService,
-      useClass: CalendarAppointmentDemoService,
-    },
-  ],
+  imports: [AppointmentActionsComponent, ApiErrorAlertComponent, CalendarSidePanelComponent],
   styleUrl: './calendar-page.component.css',
   template: `
     <main class="calendar-page">
@@ -92,9 +95,13 @@ const MONTH_NAMES = [
 
       @if (appointmentNotice()) {
         <section class="created-appointment-notice" data-created-appointment-notice role="status"><button type="button" class="created-notice-close" aria-label="Cerrar confirmación" (click)="dismissAppointmentNotice()">×</button>
-          <div class="created-notice-heading"><span class="created-notice-check" aria-hidden="true">✓</span><div><h2>¡Cita agendada correctamente!</h2><p>La cita se registró temporalmente y ya puedes consultarla en el calendario.</p></div><span class="created-notice-tag">Demostrativa</span></div>
+          <div class="created-notice-heading"><span class="created-notice-check" aria-hidden="true">✓</span><div><h2>¡Cita agendada correctamente!</h2><p>La cita quedó registrada y ya puedes consultarla en el calendario.</p></div></div>
           <div class="created-notice-details"><span aria-hidden="true">▣</span><strong>{{ appointmentNotice() }}</strong><span aria-hidden="true">◷</span><strong>{{ appointmentTime() }}</strong>@if (appointmentService()) { <span class="created-notice-service">{{ appointmentService() }}</span> }</div>
         </section>
+      }
+
+      @if (loadError(); as error) {
+        <app-api-error-alert [error]="error" />
       }
 
       <section class="calendar-layout">
@@ -138,12 +145,12 @@ const MONTH_NAMES = [
                 @let dailyAppointments = appointmentsForDate(day.date);
                 <div class="calendar-day" data-calendar-day [attr.data-date]="day.date" [attr.data-current-month]="day.isCurrentMonth" (pointerenter)="openDailyPreview(day.date, $event)" (keydown.escape)="closeDailyPreview()">
                   <button type="button" (click)="selectAppointmentForDate(day.date)">{{ dayNumber(day.date) }}</button>
-                  @for (appointment of dailyAppointments.slice(0, 2); track appointment.id) {
-                    <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" (click)="selectAppointment(appointment)">
+                  @for (appointment of dailyAppointments.slice(0, visibleLabels()); track appointment.id) {
+                    <button type="button" class="calendar-appointment-label" [attr.data-calendar-appointment]="appointment.id" [style.border-left-color]="typeOf(appointment)?.color" [attr.title]="typeOf(appointment)?.label" (click)="selectAppointment(appointment)">
                       {{ appointment.startAt.slice(11, 16) }}<span class="visually-hidden">{{ appointment.status }}</span>
                     </button>
                   }
-                  @if (dailyAppointments.length > 2) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - 2 }}</button> }
+                  @if (dailyAppointments.length > visibleLabels()) { <button type="button" class="calendar-more-appointments" data-calendar-more [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (click)="openDailyPreview(day.date, $event)">+{{ dailyAppointments.length - visibleLabels() }}</button> }
                   @if (dailyAppointments.length) {
                     <button type="button" class="calendar-day-preview-trigger" [attr.data-daily-preview-trigger]="day.date" [attr.aria-expanded]="dailyPreviewDate() === day.date" [attr.aria-controls]="'daily-preview-' + day.date" [attr.aria-label]="'Ver ' + dailyAppointments.length + ' citas del ' + formatAppointmentDate(day.date)" (focus)="openDailyPreview(day.date, $event)" (click)="openDailyPreview(day.date, $event)">
                       <span aria-hidden="true">⌄</span>
@@ -185,10 +192,8 @@ const MONTH_NAMES = [
             <section
               class="calendar-panel selected-appointment-panel"
               data-selected-appointment
-              data-demo-fixture
             >
               <h2>Cita seleccionada</h2>
-              <p>Demostración visual con datos simulados.</p>
               <dl>
                 <div><dt>Referencia</dt><dd>{{ appointment.id }}</dd></div>
                 <div><dt>Estado</dt><dd><span class="appointment-status">{{ appointment.status }}</span></dd></div>
@@ -198,107 +203,22 @@ const MONTH_NAMES = [
 
               <app-appointment-actions
                 [appointment]="appointment"
-                [canManage]="true"
-                [now]="demoNow"
+                [canManage]="canManageAppointments()"
+                [now]="now()"
                 (appointmentUpdated)="updateAppointment($event)"
               />
             </section>
           }
         </div>
 
-        <aside
-          class="calendar-sidebar"
-          aria-label="Información del calendario"
-        >
-          <section
-            class="calendar-panel treatment-panel"
-            data-demo-fixture
-          >
-            <h2>Tratamientos</h2>
-
-            <ul class="treatment-list">
-              @for (
-                treatment of treatmentLegend;
-                track treatment.name
-              ) {
-                <li>
-                  <span
-                    class="treatment-dot"
-                    [attr.data-treatment]="treatment.key"
-                  ></span>
-
-                  <span>{{ treatment.name }}</span>
-                </li>
-              }
-            </ul>
-          </section>
-
-          <section
-            class="calendar-panel waiting-list-panel"
-            data-demo-fixture
-          >
-            <header class="waiting-list-header">
-              <h2>Lista de Espera</h2>
-
-              <span class="waiting-count">
-                <span data-waiting-count>{{ waitingList().length }}</span>
-              </span>
-            </header>
-
-            <div class="waiting-list">
-              @for (
-                patient of waitingList();
-                track patient.id
-              ) {
-                <article class="waiting-card" data-waiting-patient [attr.data-waiting-patient]="patient.id">
-                  <div class="waiting-card-heading">
-                    <strong>
-                      {{ patient.name }}
-                    </strong>
-
-                    <span
-                      class="treatment-tag"
-                      [attr.data-treatment]="patient.treatmentKey"
-                    >
-                      {{ patient.treatment }}
-                    </span>
-                  </div>
-
-                  <p>
-                    {{ patient.preference }}
-                  </p>
-
-                  <button
-                    type="button"
-                    class="assign-button"
-                    [attr.data-assign-waiting]="patient.id"
-                    (click)="startDemoAssignment(patient)"
-                  >
-                    Asignar Turno
-                  </button>
-                  @if (assignmentPatientId() === patient.id) {
-                    <select class="demo-assignment-slot" data-demo-assignment-slot [value]="assignmentSlot()" (change)="assignmentSlot.set($any($event.target).value)">
-                      <option value="2026-10-20T09:00:00-05:00">20 oct · 9:00 a. m.</option>
-                      <option value="2026-10-21T11:00:00-05:00">21 oct · 11:00 a. m.</option>
-                    </select>
-                    <button type="button" class="demo-assignment-confirm" data-confirm-demo-assignment (click)="confirmDemoAssignment(patient)">Confirmar turno</button>
-                  }
-                </article>
-              }
-              @empty { <p data-waiting-empty>No hay pacientes en espera.</p> }
-            </div>
-            @if (assignmentFeedback()) { <p role="status">{{ assignmentFeedback() }}</p> }
-          </section>
-        </aside>
+        <app-calendar-side-panel />
       </section>
     </main>
   `,
 })
 export class CalendarPageComponent {
-  private readonly supportDataSource = inject(
-    CALENDAR_SUPPORT_DATA_SOURCE,
-  );
-  private readonly demoAppointments = inject(DemoAppointmentStore);
+  private readonly api = inject(AppointmentsApiService);
+  private readonly clock = inject(CLINIC_CLOCK);
   private readonly router = inject(Router, { optional: true });
   private readonly compositionNavigation = inject(
     CompositionNavigationService,
@@ -326,28 +246,27 @@ export class CalendarPageComponent {
     label: string;
   }[];
 
-  readonly treatmentLegend =
-    this.supportDataSource.treatmentLegend;
-
-  readonly waitingList = signal(this.supportDataSource.waitingList);
-
-  private readonly fixtureAppointments = signal(
-    this.supportDataSource.appointments,
-  );
-  readonly appointments = computed(() => [...this.fixtureAppointments(), ...this.demoAppointments.appointments()]);
+  /** Appointments of the visible period, read from the Appointments API and shown at clinic time. */
+  readonly appointments = signal<readonly Appointment[]>([]);
+  readonly loadError = signal<ApiError | null>(null);
+  private readonly reload = signal(0);
 
   readonly selectedAppointment = signal<Appointment | null>(null);
+  /** The month grid keeps two labels per day and summarizes the rest as "+N"; the week view lists every one. */
+  readonly visibleLabels = computed(() => (this.view() === 'week' ? Number.POSITIVE_INFINITY : 2));
+  /** HU-APT-006: catalog types by code, to colour each appointment label. */
+  private readonly types = signal<ReadonlyMap<string, AppointmentType>>(new Map());
   readonly dailyPreviewDate = signal<string | null>(null);
   readonly dailyPreviewPosition = signal({ top: 16, left: 16 });
   readonly appointmentNotice = signal<string | null>(null);
   readonly appointmentTime = signal<string | null>(null);
   readonly appointmentService = signal<string | null>(null);
-  readonly assignmentPatientId = signal<string | null>(null);
-  readonly assignmentSlot = signal('2026-10-20T09:00:00-05:00');
-  readonly assignmentFeedback = signal<string | null>(null);
-  readonly demoNow = new Date('2026-10-09T14:00:00-05:00');
+  readonly now = computed(() => {
+    this.reload();
+    return this.clock();
+  });
 
-  private readonly anchorDate = signal('2026-10-15');
+  private readonly anchorDate = signal(clinicToday(this.clock()));
 
   readonly view = signal<CalendarView>('month');
 
@@ -367,12 +286,46 @@ export class CalendarPageComponent {
     ) ?? false,
   );
 
+  /** The owner still enforces each lifecycle action; the role only decides which controls are offered. */
+  readonly canManageAppointments = computed(() =>
+    this.shellContext?.session.getSnapshot().user?.roles.some((role) =>
+      MANAGING_ROLES.has(role),
+    ) ?? false,
+  );
+
   readonly dailyPreviewAppointments = computed(() => {
     const date = this.dailyPreviewDate();
     return date ? this.appointmentsForDate(date) : [];
   });
 
   constructor() {
+    this.api.listAppointmentTypes().pipe(takeUntilDestroyed()).subscribe({
+      next: (catalog) => this.types.set(new Map(catalog.data.map((type) => [type.code, type]))),
+      error: () => this.types.set(new Map()),
+    });
+    const source = new CalendarDataSource(this.api);
+    source.errors$
+      .pipe(takeUntilDestroyed())
+      .subscribe((error) => {
+        this.appointments.set([]);
+        this.loadError.set(error);
+      });
+    source
+      .connect(
+        toObservable(
+          computed(() => {
+            this.reload();
+            return { anchorDate: this.anchorDate(), view: this.view() };
+          }),
+        ),
+      )
+      .pipe(takeUntilDestroyed())
+      .subscribe((page) => {
+        this.loadError.set(null);
+        this.appointments.set(page.data.map(toClinicTime));
+        this.refreshSelection();
+      });
+
     const state = this.router?.getCurrentNavigation()?.extras.state as { appointmentId?: string; appointmentDate?: string } | undefined;
     if (!state?.appointmentId || !state.appointmentDate) return;
     this.anchorDate.set(state.appointmentDate);
@@ -435,6 +388,10 @@ export class CalendarPageComponent {
       .sort((first, second) => first.startAt.localeCompare(second.startAt));
   }
 
+  typeOf(appointment: Appointment): AppointmentType | undefined {
+    return appointment.typeCode ? this.types().get(appointment.typeCode) : undefined;
+  }
+
   openDailyPreview(date: string, event?: Event): void {
     if (!this.appointmentsForDate(date).length) return;
     if (this.dailyPreviewDate() && this.dailyPreviewDate() !== date && event?.type !== 'click') return;
@@ -476,35 +433,18 @@ export class CalendarPageComponent {
     this.selectedAppointment.set(appointment);
   }
 
-  startDemoAssignment(patient: WaitingListItem): void {
-    this.assignmentPatientId.set(patient.id);
-    this.assignmentFeedback.set(null);
-  }
-
-  confirmDemoAssignment(patient: WaitingListItem): void {
-    if (this.assignmentPatientId() !== patient.id) return;
-    const startAt = this.assignmentSlot();
-    const appointment: Appointment = {
-      id: `appointment-demo-${patient.id}`, patientId: patient.id,
-      dentistId: 'dentist-demo-001', startAt,
-      endAt: `${startAt.slice(0, 11)}${String(Number(startAt.slice(11, 13)) + 1).padStart(2, '0')}${startAt.slice(13)}`,
-      reason: patient.treatment, status: 'PROGRAMADA', confirmationStatus: 'PENDING', version: 1,
-    };
-    this.fixtureAppointments.update((appointments) => [...appointments, appointment]);
-    this.waitingList.update((patients) => patients.filter((item) => item.id !== patient.id));
-    this.assignmentPatientId.set(null);
-    this.assignmentFeedback.set(`Turno demostrativo asignado a ${patient.name}.`);
-  }
-
+  /** After a lifecycle action the period is read again, so the calendar shows the owner state. */
   updateAppointment(updatedAppointment: Appointment): void {
-    this.fixtureAppointments.update((appointments) =>
-      appointments.map((appointment) =>
-        appointment.id === updatedAppointment.id
-          ? updatedAppointment
-          : appointment,
-      ),
+    this.selectedAppointment.set(toClinicTime(updatedAppointment));
+    this.reload.update((value) => value + 1);
+  }
+
+  private refreshSelection(): void {
+    const selected = this.selectedAppointment();
+    if (!selected) return;
+    this.selectedAppointment.set(
+      this.appointments().find((item) => item.id === selected.id) ?? null,
     );
-    this.selectedAppointment.set(updatedAppointment);
   }
 
   private navigatePeriod(direction: -1 | 1): void {
@@ -579,4 +519,12 @@ export class CalendarPageComponent {
   private capitalize(value: string): string {
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
+}
+
+function toClinicTime(appointment: Appointment): Appointment {
+  return {
+    ...appointment,
+    startAt: toClinicLocalDateTime(appointment.startAt),
+    endAt: toClinicLocalDateTime(appointment.endAt),
+  };
 }

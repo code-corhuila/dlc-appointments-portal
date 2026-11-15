@@ -1,4 +1,5 @@
 
+import type { AppointmentType } from '../model/waiting-list';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -23,7 +24,6 @@ import {
   DentistDirectoryItem,
 } from '../data/dentist-directory';
 import { PatientsLookupService } from '../data/patients-lookup.service';
-import { SchedulingDemoService } from '../data/scheduling-demo.service';
 import {
   AvailabilitySlot,
   DEFAULT_SLOT_DURATION_MINUTES,
@@ -78,7 +78,6 @@ export class SchedulingPageComponent {
   private readonly patients =
     inject(PatientsLookupService);
 
-  private readonly demo = inject(SchedulingDemoService);
   private readonly router = inject(Router, { optional: true });
   private readonly compositionNavigation = inject(
     CompositionNavigationService,
@@ -105,6 +104,12 @@ export class SchedulingPageComponent {
     | null = null;
 
   protected appointmentReason = '';
+  /** HU-APT-006: optional appointment type from the Appointments catalog. */
+  protected appointmentTypeCode = '';
+  protected readonly appointmentTypes = signal<readonly AppointmentType[]>([]);
+  /** HU-APT-005: feedback after adding the selected patient to the waiting list. */
+  protected readonly waitingListFeedback = signal<string | null>(null);
+  protected readonly isAddingToWaitingList = signal(false);
 
   protected readonly clinicTimeZone =
     inject(CLINIC_TIME_ZONE_CONFIG);
@@ -134,24 +139,6 @@ export class SchedulingPageComponent {
   readonly selectedPatient =
     signal<PatientView | null>(null);
   readonly patientSearchText = signal('');
-
-  readonly selectedSpecialty = signal<string | null>(null);
-
-  readonly selectedConsultation = signal<string | null>(null);
-
-  protected readonly specialties = this.demo.specialties;
-
-  protected readonly consultations = computed(() =>
-    this.specialties.find((specialty) =>
-      specialty.id === this.selectedSpecialty(),
-    )?.consultations ?? [],
-  );
-
-  protected readonly selectedSpecialtyName = computed(() =>
-    this.specialties.find((specialty) =>
-      specialty.id === this.selectedSpecialty(),
-    )?.name ?? null,
-  );
 
   readonly isPatientSearchLoading =
     signal(false);
@@ -190,6 +177,10 @@ export class SchedulingPageComponent {
     signal<string | null>(null);
 
   constructor() {
+    this.api.listAppointmentTypes?.().subscribe({
+      next: (catalog) => this.appointmentTypes.set(catalog.data),
+      error: () => this.appointmentTypes.set([]),
+    });
     this.dentistDirectory
       .listDentists()
       .pipe(
@@ -344,26 +335,6 @@ export class SchedulingPageComponent {
     this.refreshAvailabilitySlots();
   }
 
-  protected selectSpecialty(specialty: string): void {
-    this.selectedSpecialty.set(specialty || null);
-    this.selectedConsultation.set(null);
-    this.selectedDentistId.set(null);
-    this.dentists.set([]);
-
-    if (specialty) {
-      this.demo.listDentistsForSpecialty(specialty).subscribe(
-        (dentists) => this.dentists.set(dentists),
-      );
-    }
-
-    this.clearAppointmentFeedback();
-  }
-
-  protected selectConsultation(consultation: string): void {
-    this.selectedConsultation.set(consultation || null);
-    this.clearAppointmentFeedback();
-  }
-
   protected selectDate(
     date: string,
   ): void {
@@ -388,6 +359,38 @@ export class SchedulingPageComponent {
     reason: string,
   ): void {
     this.appointmentReason = reason;
+    this.waitingListFeedback.set(null);
+  }
+
+  protected setAppointmentType(code: string): void {
+    this.appointmentTypeCode = code;
+  }
+
+  protected canAddToWaitingList(): boolean {
+    return !!this.selectedPatient() && this.appointmentReason.trim().length > 0 && !this.isAddingToWaitingList();
+  }
+
+  /** HU-APT-005: no slot fits; keep the patient, optional dentist and reason on the waiting list. */
+  protected addToWaitingList(): void {
+    const patient = this.selectedPatient();
+    if (!patient || !this.canAddToWaitingList()) return;
+    const dentistId = this.selectedDentistId();
+    this.isAddingToWaitingList.set(true);
+    this.api
+      .createWaitingListEntry(
+        { patientId: patient.id, ...(dentistId ? { dentistId } : {}), reason: this.appointmentReason.trim() },
+        crypto.randomUUID(),
+      )
+      .subscribe({
+        next: () => {
+          this.isAddingToWaitingList.set(false);
+          this.waitingListFeedback.set('El paciente quedó en la lista de espera.');
+        },
+        error: () => {
+          this.isAddingToWaitingList.set(false);
+          this.waitingListFeedback.set('No fue posible agregarlo a la lista de espera. Puede que ya esté en espera.');
+        },
+      });
   }
 
   protected createAppointment(): void {
@@ -406,15 +409,13 @@ export class SchedulingPageComponent {
 
     if (
       !patient ||
-      !this.selectedSpecialty() ||
-      !this.selectedConsultation() ||
       !dentistId ||
       !slot
     ) {
       this.appointmentSuccess.set(null);
 
       this.appointmentError.set(
-        'Seleccione un paciente, un odontólogo y un horario antes de continuar. Además seleccione especialidad y consulta.',
+        'Seleccione un paciente, un odontólogo y un horario antes de continuar.',
       );
 
       return;
@@ -426,6 +427,7 @@ export class SchedulingPageComponent {
       startAt: slot.startAt,
       endAt: slot.endAt,
       reason: this.appointmentReason.trim(),
+      ...(this.appointmentTypeCode ? { typeCode: this.appointmentTypeCode } : {}),
     };
 
     const idempotencyKey =
@@ -455,9 +457,7 @@ export class SchedulingPageComponent {
         next: (appointment) => {
           this.appointmentError.set(null);
 
-          this.appointmentSuccess.set(
-          'Cita agendada correctamente. Cita demostrativa creada correctamente; los datos son temporales y no se guardaron en una base de datos real.',
-          );
+          this.appointmentSuccess.set(APPOINTMENT_SUCCESS_MESSAGE);
           this.resetForm();
           this.navigateToCalendar(appointment.id, appointment.startAt);
         },
@@ -502,6 +502,11 @@ export class SchedulingPageComponent {
       });
   }
 
+  /** Patients owns registration; the shell opens its form (C04). */
+  openNewPatient(): void {
+    void this.compositionNavigation?.requestShellPath('/app/patients/new');
+  }
+
   private navigateToCalendar(appointmentId: string, startAt: string): void {
     if (this.compositionNavigation) {
       void this.compositionNavigation.request({ localPath: '/calendar' });
@@ -523,8 +528,8 @@ export class SchedulingPageComponent {
 
   private resetForm(): void {
     this.selectedPatient.set(null); this.patientSearchText.set(''); this.patientResults.set([]);
-    this.selectedSpecialty.set(null); this.selectedConsultation.set(null); this.selectedDate.set(null);
-    this.selectedDentistId.set(null); this.selectedSlot.set(null); this.availableSlots.set([]); this.dentists.set([]);
+    this.selectedDate.set(null);
+    this.selectedDentistId.set(null); this.selectedSlot.set(null); this.availableSlots.set([]);
     this.appointmentReason = '';
   }
 

@@ -24,6 +24,8 @@ export interface Appointment {
   readonly createdAt?: string;
   readonly updatedAt?: string;
   readonly version: number;
+  /** HU-APT-006 appointment type code, absent when none was chosen. */
+  readonly typeCode?: string;
 }
 
 export interface CreateAppointmentRequest {
@@ -32,4 +34,5 @@ export interface CreateAppointmentRequest {
   readonly startAt: string;
   readonly endAt: string;
   readonly reason: string;
+  readonly typeCode?: string;
 }

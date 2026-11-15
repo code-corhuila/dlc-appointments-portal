@@ -1,10 +1,12 @@
 {
   "name": "dlc-appointments-portal",
-  "version": "0.0.0",
+  "version": "2.1.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:entry": "ng run dlc-appointments-portal:composition && node scripts/publish-entry.mjs && npm run verify:entry",
+    "verify:entry": "node --experimental-vm-modules scripts/verify-entry.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

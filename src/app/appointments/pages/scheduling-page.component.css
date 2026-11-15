@@ -491,3 +491,9 @@ select:disabled {
     width: 100%;
   }
 }
+
+.specialist-helper {
+  margin: 0;
+  color: #849095;
+  font-size: 13px;
+}

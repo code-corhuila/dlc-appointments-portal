@@ -37,14 +37,6 @@ export interface NoShowAppointmentRequest {
   readonly reason: string;
 }
 
-export interface PublicConfirmationRequest {
-  readonly token: string;
-}
-
-export interface ConfirmationReceipt {
-  readonly confirmed: boolean;
-}
-
 export interface EndClinicalAssignmentRequest {
   readonly reason: string;
   readonly expectedVersion: number;
